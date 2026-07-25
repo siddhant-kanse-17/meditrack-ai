@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, getDocs } from "firebase/firestore";
 
 const welcomeHeading = document.querySelector(".content h1");
@@ -19,6 +19,7 @@ const modalMfg = document.getElementById("modalMedMfg");
 const modalExp = document.getElementById("modalMedExp");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const sellMedBtn = document.getElementById("sellMedBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 let allMedicinesList = [];
 let selectedMedicineForBilling = null;
@@ -96,7 +97,7 @@ if (searchInput) {
             return;
         }
 
-        const filtered = allMedicinesList.filter(m => m.name.toLowerCase().includes(term));
+        const filtered = allMedicinesList.filter(m => (m.name || "").toLowerCase().includes(term));
 
         if (filtered.length === 0) {
             searchResults.innerHTML = `<div style="padding: 10px; color: #888;">No medicine found</div>`;
@@ -123,19 +124,19 @@ if (searchInput) {
 // 4. Open Modal Function
 function openMedicineModal(med) {
     selectedMedicineForBilling = med;
-    modalName.innerText = med.name;
-    modalPrice.innerText = med.price;
-    modalStock.innerText = med.stock;
-    modalMfg.innerText = formatMonthYear(med.mfgDate);
-    modalExp.innerText = formatMonthYear(med.expiryDate);
+    if (modalName) modalName.innerText = med.name || "N/A";
+    if (modalPrice) modalPrice.innerText = med.price || 0;
+    if (modalStock) modalStock.innerText = med.stock || 0;
+    if (modalMfg) modalMfg.innerText = formatMonthYear(med.mfgDate);
+    if (modalExp) modalExp.innerText = formatMonthYear(med.expiryDate);
 
-    medModal.style.display = "flex";
+    if (medModal) medModal.style.display = "flex";
 }
 
 // Close Modal
 if (closeModalBtn) {
     closeModalBtn.addEventListener("click", () => {
-        medModal.style.display = "none";
+        if (medModal) medModal.style.display = "none";
     });
 }
 
@@ -146,6 +147,33 @@ if (sellMedBtn) {
             // Save selected medicine to localStorage so billing.html can read it
             localStorage.setItem("selectedMedForBilling", JSON.stringify(selectedMedicineForBilling));
             window.location.href = "billing.html";
+        }
+    });
+}
+
+// Logout Listener
+if (logoutBtn) {
+    logoutBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        try {
+            await signOut(auth);
+            window.location.href = "index.html";
+        } catch (err) {
+            console.error("Logout Error:", err);
+        }
+    });
+}
+
+// Reset Data Event Listener
+const resetBtn = document.getElementById('resetDataBtn');
+if (resetBtn) {
+    resetBtn.addEventListener('click', function() {
+        const confirmReset = confirm("Kya aap saara data format/reset karna chahte ho? Ye action undo nahi ho sakta.");
+        
+        if (confirmReset) {
+            localStorage.clear();
+            alert("Data reset ho gaya hai! Fresh start ke liye page reload ho raha hai.");
+            window.location.reload();
         }
     });
 }
