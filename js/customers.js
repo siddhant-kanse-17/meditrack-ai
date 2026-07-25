@@ -72,7 +72,9 @@ async function loadCustomersData() {
         });
 
         allCustomers = Object.values(customerMap);
-        renderCustomersTable(allCustomers);
+        
+        // Reversed array so latest customers show on top
+        renderCustomersTable([...allCustomers].reverse());
 
     } catch (err) {
         console.error("Error loading customers:", err);
@@ -117,7 +119,10 @@ window.viewCustomerBills = function(mobile) {
     const cust = allCustomers.find(c => c.mobile === mobile);
     if (!cust) return;
 
-    let billsListHtml = cust.bills.map((b, index) => {
+    // Reversing individual bills array so newest bill shows on top inside modal
+    let sortedBills = [...cust.bills].reverse();
+
+    let billsListHtml = sortedBills.map((b, index) => {
         let itemsRows = b.medicines.map(m => {
             const medName = m.medicine || m.name || 'Medicine';
             const price = Number(m.price || 0);
@@ -230,6 +235,6 @@ if (searchCustomerInput) {
             c.name.toLowerCase().includes(term) || 
             c.mobile.toLowerCase().includes(term)
         );
-        renderCustomersTable(filtered);
+        renderCustomersTable([...filtered].reverse());
     });
 }
