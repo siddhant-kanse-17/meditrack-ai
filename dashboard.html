@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack-AI Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+        <h2>💊 MediTrack-AI</h2>
+        <ul>
+            <li><a href="dashboard.html" class="active">🏠 Dashboard</a></li>
+            <li><a href="medicines.html">💊 Medicines</a></li>
+            <li><a href="billing.html">💰 Billing</a></li>
+            <li><a href="customers.html">👥 Customers</a></li>
+            <li><a href="reports.html">📊 Reports</a></li>
+            <li><a href="settings.html">⚙ Settings</a></li>
+            <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="content">
+
+        <h1>Welcome Admin 👋</h1>
+        <br>
+
+        <!-- Quick Actions & Search Bar Section -->
+        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 25px; flex-wrap: wrap;">
+            <button onclick="window.location.href='sales.html'">Sales History</button>
+            
+            <!-- Live Search Input -->
+            <div style="position: relative; flex: 1; max-width: 400px;">
+                <input type="text" id="dashboardSearch" placeholder="🔍 Quick Search Medicine..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+                <!-- Live Search Results Dropdown -->
+                <div id="searchResults" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 6px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: none;"></div>
+            </div>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <h3>Total Medicines</h3>
+                <p id="totalMedicines">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Today's Sales</h3>
+                <p id="todaySales">₹0</p>
+            </div>
+
+            <div class="card">
+                <h3>Customers</h3>
+                <p id="totalCustomers">0</p>
+            </div>
+
+            <div class="card">
+                <h3>Low Stock Alerts</h3>
+                <p id="expiryAlerts">0</p>
+            </div>
+        </div>
+
+    </main>
+
+</div>
+
+<!-- Medicine Details Popup Modal -->
+<div id="medModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 25px; border-radius: 10px; width: 350px; text-align: left; position: relative;">
+        <h2 id="modalMedName" style="margin-top: 0; color: #007bff;">Medicine Name</h2>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+        <p><b>Price:</b> ₹<span id="modalMedPrice">0</span></p>
+        <p><b>Current Stock:</b> <span id="modalMedStock">0</span> pcs</p>
+        <p><b>Mfg Date:</b> <span id="modalMedMfg">N/A</span></p>
+        <p><b>Expiry Date:</b> <span id="modalMedExp">N/A</span></p>
+        <br>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="closeModalBtn" style="background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Close</button>
+            <button id="sellMedBtn" style="background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">🛒 Sell / Go to Billing</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/dashboard.js"></script>
+
+</body>
+</html>

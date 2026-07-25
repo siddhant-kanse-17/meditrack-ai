@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack AI - Billing</title>
+
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            #billArea,
+            #billArea * {
+                visibility: visible;
+            }
+
+            #billArea {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>MediTrack AI - Billing</h1>
+
+    <hr>
+
+    <h3>Customer Details</h3>
+
+    <input
+        type="text"
+        id="customerName"
+        placeholder="Customer Name">
+
+    <input
+        type="tel"
+        id="customerPhone"
+        placeholder="Mobile Number"
+        maxlength="10">
+
+    <br><br>
+
+    <hr>
+
+    <h3>Medicine Billing</h3>
+
+    <select id="medicineSelect">
+        <option value="">Select Medicine</option>
+    </select>
+
+    <input
+        type="number"
+        id="qty"
+        placeholder="Quantity"
+        min="1">
+
+    <button id="addBillItem">
+        Add To Bill
+    </button>
+
+    <hr>
+
+    <div id="billArea">
+
+        <h1 style="text-align:center;">MediTrack AI</h1>
+
+        <h3 style="text-align:center;">
+            Medical Store Management System
+        </h3>
+
+        <hr>
+
+        <h3>Customer Bill</h3>
+
+        <p><strong>Invoice No :</strong>
+        <span id="invoiceNo"></span></p>
+
+        <p><strong>Date :</strong>
+        <span id="billDate"></span></p>
+
+        <p><strong>Time :</strong>
+        <span id="billTime"></span></p>
+
+        <p><strong>Customer :</strong>
+        <span id="billCustomer">-</span></p>
+
+        <p><strong>Mobile :</strong>
+        <span id="billPhone">-</span></p>
+
+        <table border="1" cellpadding="10" cellspacing="0">
+
+            <thead>
+                <tr>
+                    <th>Medicine</th>
+                    <th>Price</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+
+            <tbody id="billTable"></tbody>
+
+        </table>
+
+        <br>
+
+        <h2 id="grandTotal">
+            Grand Total: ₹0
+        </h2>
+
+        <hr>
+
+        <p style="text-align:center;">
+            Thank You for Visiting!
+        </p>
+
+        <p style="text-align:center;">
+            Get Well Soon 😊
+        </p>
+
+    </div>
+
+    <button id="generateBill">
+        Generate Bill
+    </button>
+
+    <button id="printBill">
+        Print Bill
+    </button>
+
+    <script type="module" src="js/billing.js"></script>
+
+</body>
+</html>

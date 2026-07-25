@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack-AI | Customers</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+        <h2>💊 MediTrack-AI</h2>
+        <ul>
+            <li><a href="dashboard.html">🏠 Dashboard</a></li>
+            <li><a href="medicines.html">💊 Medicines</a></li>
+            <li><a href="billing.html">💰 Billing</a></li>
+            <li><a href="customers.html" class="active">👥 Customers</a></li>
+            <li><a href="reports.html">📊 Reports</a></li>
+            <li><a href="settings.html">⚙ Settings</a></li>
+            <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="content">
+        <h1>Customers 👥</h1>
+        <br>
+
+        <input type="text" id="searchCustomer" placeholder="Search by Name or Mobile" style="margin-bottom: 20px; padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc; width: 250px;">
+
+        <table class="medicine-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Mobile</th>
+                    <th>Total Bills</th>
+                    <th>Total Purchase</th>
+                    <th>Last Purchase</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="customersTableBody">
+                <tr><td colspan="6">Loading Customers Data...</td></tr>
+            </tbody>
+        </table>
+
+    </main>
+
+</div>
+
+<script type="module" src="js/customers.js"></script>
+
+</body>
+</html>

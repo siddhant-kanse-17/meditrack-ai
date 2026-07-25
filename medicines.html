@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack-AI | Medicines</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+        <h2>💊 MediTrack-AI</h2>
+        <ul>
+            <li><a href="dashboard.html">🏠 Dashboard</a></li>
+            <li><a href="medicines.html" class="active">💊 Medicines</a></li>
+            <li><a href="billing.html">💰 Billing</a></li>
+            <li><a href="customers.html">👥 Customers</a></li>
+            <li><a href="reports.html">📊 Reports</a></li>
+            <li><a href="settings.html">⚙ Settings</a></li>
+            <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="content">
+        <h1>Medicines 💊</h1>
+        <br>
+
+        <!-- Form with Month/Year Inputs -->
+        <form id="medicineForm" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <input type="text" id="medName" placeholder="Medicine Name" required>
+            <input type="number" id="medPrice" placeholder="Price" required>
+            <input type="number" id="medStock" placeholder="Stock" required>
+            
+            <div style="display: flex; flex-direction: column;">
+                <label style="font-size: 12px; color: #666;">Mfg Date (MM/YYYY):</label>
+                <input type="month" id="medMfgDate">
+            </div>
+
+            <div style="display: flex; flex-direction: column;">
+                <label style="font-size: 12px; color: #666;">Exp Date (MM/YYYY):</label>
+                <input type="month" id="medExpDate" required>
+            </div>
+
+            <button type="submit" id="addMedBtn" style="align-self: flex-end; padding: 10px 20px;">Add Medicine</button>
+        </form>
+
+        <input type="text" id="searchMedicine" placeholder="Search Medicine..." style="margin-bottom: 20px;">
+
+        <table class="medicine-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Mfg Date</th>
+                    <th>Exp Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="medicineTableBody">
+                <tr><td colspan="6">Loading medicines...</td></tr>
+            </tbody>
+        </table>
+
+    </main>
+
+</div>
+
+<script type="module" src="js/medicine.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack-AI | Settings</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+        <h2>💊 MediTrack-AI</h2>
+        <ul>
+            <li><a href="dashboard.html">🏠 Dashboard</a></li>
+            <li><a href="medicines.html">💊 Medicines</a></li>
+            <li><a href="billing.html">💰 Billing</a></li>
+            <li><a href="customers.html">👥 Customers</a></li>
+            <li><a href="reports.html">📊 Reports</a></li>
+            <li><a href="settings.html" class="active">⚙ Settings</a></li>
+            <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="content">
+        <h1>Admin Settings ⚙</h1>
+        <br>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+
+            <!-- Profile Name Card -->
+            <div class="card" style="flex: 1; min-width: 320px;">
+                <h3>👤 Profile Settings</h3>
+                <br>
+                <form id="profileForm">
+                    <label><b>Admin Name:</b></label>
+                    <input type="text" id="adminNameInput" placeholder="Enter Your Name" required>
+                    
+                    <button type="submit" id="saveProfileBtn" style="margin-top: 15px;">Save Name</button>
+                </form>
+            </div>
+
+            <!-- Security Card -->
+            <div class="card" style="flex: 1; min-width: 320px;">
+                <h3>🔒 Security Settings</h3>
+                <br>
+                <form id="securityForm">
+                    <label><b>Current Password (Required):</b></label>
+                    <input type="password" id="currentPassword" placeholder="Enter Current Password" required>
+
+                    <br><br>
+                    <label><b>New Email:</b></label>
+                    <input type="email" id="newEmail" placeholder="New Email Address">
+
+                    <br><br>
+                    <label><b>New Password:</b></label>
+                    <input type="password" id="newPassword" placeholder="New Password (min 6 chars)">
+
+                    <button type="submit" id="saveSecurityBtn" style="margin-top: 15px;">Update Credentials</button>
+                </form>
+            </div>
+
+        </div>
+    </main>
+
+</div>
+
+<script type="module" src="js/settings.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:#f4f7fc;
+}
+
+.dashboard{
+    display:flex;
+}
+
+.sidebar{
+    width:250px;
+    min-height:100vh;
+    background:#1565c0;
+    color:white;
+    padding:20px;
+    box-sizing:border-box;
+}
+
+.sidebar h2{
+    margin-bottom:40px;
+}
+
+.sidebar a{
+    display:block;
+    color:white;
+    text-decoration:none;
+    padding:12px;
+    margin:8px 0;
+    border-radius:8px;
+}
+
+.sidebar a:hover,
+.sidebar .active{
+    background:white;
+    color:#1565c0;
+}
+
+.content{
+    flex:1;
+    padding:35px;
+}
+
+form input,
+#search{
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    border:1px solid #ccc;
+    border-radius:8px;
+    box-sizing:border-box;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    background:#1565c0;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:16px;
+}
+
+button:hover{
+    background:#0d47a1;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+    background:white;
+}
+
+table th{
+    background:#1565c0;
+    color:white;
+    padding:12px;
+}
+
+table td{
+    padding:12px;
+    border-bottom:1px solid #ddd;
+}
+
+table tr:hover{
+    background:#f5f5f5;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+    .dashboard {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        position: relative;
+    }
+    .content {
+        padding: 15px;
+        overflow-x: hidden;
+    }
+    .medicine-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

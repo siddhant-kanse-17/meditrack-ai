@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack-AI | Reports</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+        <h2>💊 MediTrack-AI</h2>
+        <ul>
+            <li><a href="dashboard.html">🏠 Dashboard</a></li>
+            <li><a href="medicines.html">💊 Medicines</a></li>
+            <li><a href="billing.html">💰 Billing</a></li>
+            <li><a href="customers.html">👥 Customers</a></li>
+            <li><a href="reports.html" class="active">📊 Reports</a></li>
+            <li><a href="settings.html">⚙ Settings</a></li>
+            <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="content">
+        <h1>Inventory & Expiry Reports 📊</h1>
+        <p>Report Date: <b id="todayReportDate"></b></p>
+        <br>
+
+        <div class="cards">
+            <div class="card" style="border-left: 5px solid #dc3545;">
+                <h3>Expired Medicines</h3>
+                <p id="expiredCount" style="color: #dc3545;">0</p>
+            </div>
+            <div class="card" style="border-left: 5px solid #ffc107;">
+                <h3>Expiring Soon (30 Days)</h3>
+                <p id="expiringSoonCount" style="color: #ffc107;">0</p>
+            </div>
+            <div class="card" style="border-left: 5px solid #28a745;">
+                <h3>Total Batches</h3>
+                <p id="totalBatches">0</p>
+            </div>
+        </div>
+
+        <br><br>
+
+        <h2>⚠️ Expiry Alert List</h2>
+        <table class="medicine-table">
+            <thead>
+                <tr>
+                    <th>Medicine Name</th>
+                    <th>Stock Qty</th>
+                    <th>Expiry Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="expiryReportTable">
+                <tr><td colspan="4">Loading Report Data...</td></tr>
+            </tbody>
+        </table>
+
+    </main>
+
+</div>
+
+<script type="module" src="js/reports.js"></script>
+
+</body>
+</html>
