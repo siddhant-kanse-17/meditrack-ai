@@ -120,12 +120,11 @@ if (logoutBtn) {
 const resetBtn = document.getElementById('resetDataBtn');
 if (resetBtn) {
     resetBtn.addEventListener('click', function () {
-        const confirmReset = confirm(
-            "⚠️ Kya aap medicines, sales history aur bills reset karna chahte hain? Admin Login aur Settings safe rahenge."
-        );
+        // Confirmation Pop-up
+        const userConfirmed = window.confirm("⚠️ Do you want to reset the medicines, sales, and billing records?");
 
-        if (confirmReset) {
-            // Direct specific data keys delete kar rahe hain (Auth/Email safe rahega)
+        if (userConfirmed) {
+            // Target arrays remove from localStorage
             const dataKeysToReset = [
                 'medicines',
                 'bills',
@@ -139,9 +138,10 @@ if (resetBtn) {
                 localStorage.removeItem(key);
             });
 
-            alert("Medicines aur Bills data successfully reset ho gaya hai!");
-            
-            // Dashboard redirect to reflect 0 count
+            // Clear status alert
+            alert("Data reset ho gaya hai!");
+
+            // Redirect to dashboard to update UI
             window.location.href = "dashboard.html";
         }
     });
