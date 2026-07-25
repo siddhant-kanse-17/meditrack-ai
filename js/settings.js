@@ -26,84 +26,123 @@ onAuthStateChanged(auth, (user) => {
     if (!user) {
         window.location.href = "index.html";
     } else {
-        adminNameInput.value = user.displayName || "";
-        newEmailInput.value = user.email || "";
+        if (adminNameInput) adminNameInput.value = user.displayName || "";
+        if (newEmailInput) newEmailInput.value = user.email || "";
     }
 });
 
 // 2. Update Admin Name
-profileForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const newName = adminNameInput.value.trim();
+if (profileForm) {
+    profileForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const newName = adminNameInput.value.trim();
 
-    try {
-        saveProfileBtn.disabled = true;
-        saveProfileBtn.innerText = "Saving...";
+        try {
+            saveProfileBtn.disabled = true;
+            saveProfileBtn.innerText = "Saving...";
 
-        if (auth.currentUser) {
-            await updateProfile(auth.currentUser, { displayName: newName });
-            alert("Name updated successfully!");
+            if (auth.currentUser) {
+                await updateProfile(auth.currentUser, { displayName: newName });
+                alert("Name updated successfully!");
+            }
+        } catch (err) {
+            alert("Failed to update name: " + err.message);
+        } finally {
+            saveProfileBtn.disabled = false;
+            saveProfileBtn.innerText = "Save Name";
         }
-    } catch (err) {
-        alert("Failed to update name: " + err.message);
-    } finally {
-        saveProfileBtn.disabled = false;
-        saveProfileBtn.innerText = "Save Name";
-    }
-});
+    });
+}
 
 // 3. Update Email / Password
-securityForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
+if (securityForm) {
+    securityForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-    const user = auth.currentUser;
-    const currentPassword = currentPasswordInput.value;
-    const newEmail = newEmailInput.value.trim();
-    const newPassword = newPasswordInput.value;
+        const user = auth.currentUser;
+        const currentPassword = currentPasswordInput.value;
+        const newEmail = newEmailInput.value.trim();
+        const newPassword = newPasswordInput.value;
 
-    if (!currentPassword) {
-        alert("Please enter your current password.");
-        return;
-    }
-
-    try {
-        saveSecurityBtn.disabled = true;
-        saveSecurityBtn.innerText = "Updating...";
-
-        // Re-authenticate
-        const credential = EmailAuthProvider.credential(user.email, currentPassword);
-        await reauthenticateWithCredential(user, credential);
-
-        if (newEmail && newEmail !== user.email) {
-            await updateEmail(user, newEmail);
+        if (!currentPassword) {
+            alert("Please enter your current password.");
+            return;
         }
 
-        if (newPassword) {
-            if (newPassword.length < 6) {
-                alert("Password must be at least 6 characters.");
-                return;
+        try {
+            saveSecurityBtn.disabled = true;
+            saveSecurityBtn.innerText = "Updating...";
+
+            // Re-authenticate
+            const credential = EmailAuthProvider.credential(user.email, currentPassword);
+            await reauthenticateWithCredential(user, credential);
+
+            if (newEmail && newEmail !== user.email) {
+                await updateEmail(user, newEmail);
             }
-            await updatePassword(user, newPassword);
+
+            if (newPassword) {
+                if (newPassword.length < 6) {
+                    alert("Password must be at least 6 characters.");
+                    return;
+                }
+                await updatePassword(user, newPassword);
+            }
+
+            alert("Credentials updated successfully!");
+            currentPasswordInput.value = "";
+            newPasswordInput.value = "";
+
+        } catch (err) {
+            console.error("Update Error:", err);
+            alert("Error: " + err.message);
+        } finally {
+            saveSecurityBtn.disabled = false;
+            saveSecurityBtn.innerText = "Update Credentials";
         }
-
-        alert("Credentials updated successfully!");
-        currentPasswordInput.value = "";
-        newPasswordInput.value = "";
-
-    } catch (err) {
-        console.error("Update Error:", err);
-        alert("Error: " + err.message);
-    } finally {
-        saveSecurityBtn.disabled = false;
-        saveSecurityBtn.innerText = "Update Credentials";
-    }
-});
+    });
+}
 
 // 4. Logout
 if (logoutBtn) {
     logoutBtn.addEventListener("click", async (e) => {
         e.preventDefault();
-        await signOut(auth);
-        window.location.href = "index.html";
+        try {
+            await signOut(auth);
+            window.location.href = "index.html";
+        } catch (err) {
+            console.error("Logout Error:", err);
+        }
+    });
+}
+
+// 5. Safe System Reset Logic
+const resetBtn = document.getElementById('resetDataBtn');
+if (resetBtn) {
+    resetBtn.addEventListener('click', function () {
+        const confirmReset = confirm(
+            "⚠️ Kya aap medicines, sales history aur bills reset karna chahte hain? Admin Login aur Settings safe rahenge."
+        );
+
+        if (confirmReset) {
+            // Direct specific data keys delete kar rahe hain (Auth/Email safe rahega)
+            const dataKeysToReset = [
+                'medicines',
+                'bills',
+                'sales',
+                'customers',
+                'reports',
+                'inventory'
+            ];
+
+            dataKeysToReset.forEach(key => {
+                localStorage.removeItem(key);
+            });
+
+            alert("Medicines aur Bills data successfully reset ho gaya hai!");
+            
+            // Dashboard redirect to reflect 0 count
+            window.location.href = "dashboard.html";
+        }
     });
 }
