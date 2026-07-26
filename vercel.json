@@ -1,5 +1,5 @@
 {
-  "outputDirectory": "dist",
+  "outputDirectory": ".",
   "cleanUrls": true,
   "rewrites": [
     { "source": "/(.*)", "destination": "/$1" }
