@@ -1,219 +1,207 @@
+import { db } from "./firebase-config.js";
 import {
-    collection,
-    getDocs
-} from "firebase/firestore";
+  collection,
+  getDocs,
+  query,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { db } from "./firebase.js";
-
-const salesTable = document.getElementById("salesTable");
-const totalSales = document.getElementById("totalSales");
-
-// Modal Elements
+// DOM Elements
+const salesTableBody = document.getElementById("salesTableBody") || document.getElementById("salesTable");
+const totalSalesElement = document.getElementById("totalSales");
+const searchSalesInput = document.getElementById("searchSales") || document.getElementById("searchInvoice");
 const invoiceModal = document.getElementById("invoiceModal");
-const invoiceDetails = document.getElementById("invoiceDetails");
+const modalContent = document.getElementById("modalContent") || document.getElementById("invoiceDetails");
 
-const searchInvoice = document.getElementById("searchInvoice");
-const searchCustomer = document.getElementById("searchCustomer");
-const searchBtn = document.getElementById("searchBtn");
+let allSales = [];
 
-async function loadSales(invoiceSearch = "", customerSearch = "") {
+/**
+ * Fetch sales data from Firestore with LocalStorage fallback
+ */
+async function loadSalesHistory() {
+  try {
+    const salesQuery = query(collection(db, "sales"), orderBy("timestamp", "desc"));
+    const querySnapshot = await getDocs(salesQuery);
 
-    salesTable.innerHTML = "";
+    allSales = [];
+    querySnapshot.forEach((doc) => {
+      allSales.push({ id: doc.id, ...doc.data() });
+    });
 
-    let grandTotal = 0;
+    // LocalStorage fallback if Firestore returns no records
+    if (allSales.length === 0) {
+      allSales = JSON.parse(localStorage.getItem("sales")) || [];
+    }
+  } catch (error) {
+    console.warn("Firestore fetch failed, using local storage fallback:", error);
+    allSales = JSON.parse(localStorage.getItem("sales")) || [];
+  }
 
-    const querySnapshot = await getDocs(collection(db, "sales"));
+  renderSalesTable(allSales);
+}
 
-    querySnapshot.forEach((docSnap) => {
+/**
+ * Render table rows & calculate grand total
+ */
+function renderSalesTable(salesData) {
+  if (!salesTableBody) return;
 
-        const sale = docSnap.data();
+  if (salesData.length === 0) {
+    salesTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 15px; color: #666;">
+          No sales records found.
+        </td>
+      </tr>`;
+    if (totalSalesElement) totalSalesElement.innerText = "Total Sales: ₹0.00";
+    return;
+  }
 
-        // Filter by Invoice Number
-        if (
-            invoiceSearch &&
-            !sale.invoiceNo.toLowerCase().includes(invoiceSearch.toLowerCase())
-        ) {
-            return;
-        }
+  let runningTotal = 0;
 
-        // Filter by Customer Name
-        if (
-            customerSearch &&
-            !sale.customer.toLowerCase().includes(customerSearch.toLowerCase())
-        ) {
-            return;
-        }
+  salesTableBody.innerHTML = salesData
+    .map((sale) => {
+      // Field normalization to handle schema differences
+      const invoiceNo = sale.invoiceNo || sale.id || "N/A";
+      const customer = sale.customerName || sale.customer || "Walk-in Customer";
+      const mobile = sale.mobile || sale.phone || "N/A";
+      const totalAmount = Number(sale.grandTotal || sale.total || 0);
+      
+      runningTotal += totalAmount;
 
-        grandTotal += sale.grandTotal || 0;
+      // Date parsing
+      let formattedDate = sale.date || "N/A";
+      if (sale.timestamp?.toDate) {
+        formattedDate = sale.timestamp.toDate().toLocaleDateString();
+      } else if (sale.timestamp?.seconds) {
+        formattedDate = new Date(sale.timestamp.seconds * 1000).toLocaleDateString();
+      }
 
-        salesTable.innerHTML += `
-        <tr>
-
-            <td>${sale.invoiceNo}</td>
-
-            <td>${sale.customer}</td>
-
-            <td>${sale.mobile}</td>
-
-            <td>₹${sale.grandTotal}</td>
-
-            <td>${sale.date}</td>
-
-            <td>${sale.time}</td>
-
-            <td>
-                <button onclick="viewInvoice('${sale.invoiceNo}')">
-                    View
-                </button>
-            </td>
-
+      return `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 10px;"><strong>${invoiceNo}</strong></td>
+          <td>${customer}</td>
+          <td>${mobile}</td>
+          <td><strong>₹${totalAmount.toFixed(2)}</strong></td>
+          <td>${formattedDate}</td>
+          <td>
+            <button onclick="openModal('${sale.id || invoiceNo}')" 
+                    style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">
+              View Details
+            </button>
+          </td>
         </tr>
-        `;
+      `;
+    })
+    .join("");
 
+  if (totalSalesElement) {
+    totalSalesElement.innerText = `Total Sales: ₹${runningTotal.toFixed(2)}`;
+  }
+}
+
+/**
+ * Filter handler for Search Input
+ */
+if (searchSalesInput) {
+  searchSalesInput.addEventListener("input", (e) => {
+    const term = e.target.value.toLowerCase().trim();
+
+    const filtered = allSales.filter((sale) => {
+      const invoice = (sale.invoiceNo || sale.id || "").toLowerCase();
+      const customer = (sale.customerName || sale.customer || "").toLowerCase();
+      const mobile = (sale.mobile || sale.phone || "").toLowerCase();
+
+      return invoice.includes(term) || customer.includes(term) || mobile.includes(term);
     });
 
-    totalSales.innerText = `Total Sales : ₹${grandTotal}`;
-
+    renderSalesTable(filtered);
+  });
 }
 
-// Initial Load
-loadSales();
+/**
+ * Open Modal and display invoice details
+ */
+window.openModal = function (saleId) {
+  const sale = allSales.find((s) => s.id === saleId || s.invoiceNo === saleId);
+  if (!sale || !invoiceModal || !modalContent) return;
 
-// Search Button Event Listener
-searchBtn.addEventListener("click", () => {
+  const items = sale.items || sale.medicines || [];
+  
+  let itemsTableRows = "";
+  if (Array.isArray(items) && items.length > 0) {
+    itemsTableRows = items
+      .map((item) => {
+        const name = item.name || item.medicine || "Item";
+        const qty = item.quantity || 1;
+        const price = Number(item.price || 0);
+        const itemTotal = Number(item.total || price * qty);
 
-    loadSales(
-        searchInvoice.value.trim(),
-        searchCustomer.value.trim()
-    );
+        return `
+          <tr>
+            <td style="padding:6px; text-align:left;">${name}</td>
+            <td style="padding:6px; text-align:center;">${qty}</td>
+            <td style="padding:6px; text-align:right;">₹${price.toFixed(2)}</td>
+            <td style="padding:6px; text-align:right;">₹${itemTotal.toFixed(2)}</td>
+          </tr>`;
+      })
+      .join("");
+  } else {
+    itemsTableRows = `<tr><td colspan="4" style="text-align:center; padding:10px;">No items recorded</td></tr>`;
+  }
 
-});
+  modalContent.innerHTML = `
+    <div id="printableArea">
+      <h2 style="margin-top:0; border-bottom:2px solid #007bff; padding-bottom:8px; color:#007bff;">💊 MediTrack AI - Invoice</h2>
+      <p style="margin:4px 0;"><strong>Invoice No:</strong> ${sale.invoiceNo || sale.id}</p>
+      <p style="margin:4px 0;"><strong>Customer:</strong> ${sale.customerName || sale.customer || "Walk-in Customer"}</p>
+      <p style="margin:4px 0;"><strong>Mobile:</strong> ${sale.mobile || sale.phone || "N/A"}</p>
+      <p style="margin:4px 0;"><strong>Date:</strong> ${sale.date || "N/A"}</p>
+      
+      <hr style="border:none; border-top:1px dashed #ccc; margin:12px 0;">
+      
+      <h4 style="margin:8px 0;">Purchased Items:</h4>
+      <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; text-align:left;">
+        <thead>
+          <tr style="background:#f4f4f4;">
+            <th>Item</th>
+            <th style="text-align:center;">Qty</th>
+            <th style="text-align:right;">Price</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsTableRows}
+        </tbody>
+      </table>
+      
+      <h3 style="text-align:right; margin-top:15px; color:#28a745;">
+        Grand Total: ₹${Number(sale.grandTotal || sale.total || 0).toFixed(2)}
+      </h3>
+    </div>
 
-// View Invoice Details (Renders inside Modal)
-window.viewInvoice = async function(invoiceNo){
+    <div class="no-print" style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px;">
+      <button onclick="printInvoice()" style="background:#28a745; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Print Invoice</button>
+      <button onclick="closeModal()" style="background:#dc3545; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Close</button>
+    </div>
+  `;
 
-    const querySnapshot = await getDocs(collection(db,"sales"));
+  invoiceModal.style.display = "flex";
+};
 
-    querySnapshot.forEach((docSnap)=>{
+/**
+ * Close Modal
+ */
+window.closeModal = function () {
+  if (invoiceModal) invoiceModal.style.display = "none";
+};
 
-        const sale = docSnap.data();
-
-        if(sale.invoiceNo === invoiceNo){
-
-            let medicineRows = "";
-
-            if (sale.medicines && Array.isArray(sale.medicines)) {
-                sale.medicines.forEach((item) => {
-                    medicineRows += `
-                        <tr>
-                            <td>${item.medicine}</td>
-                            <td>${item.quantity}</td>
-                            <td>₹${item.price}</td>
-                            <td>₹${item.total}</td>
-                        </tr>
-                    `;
-                });
-            }
-
-            invoiceDetails.innerHTML = `
-            <p><b>Invoice :</b> ${sale.invoiceNo}</p>
-            <p><b>Customer :</b> ${sale.customer}</p>
-            <p><b>Mobile :</b> ${sale.mobile}</p>
-            <p><b>Date :</b> ${sale.date}</p>
-            <p><b>Time :</b> ${sale.time}</p>
-
-            <br>
-            <h4>Purchased Items</h4>
-            <table border="1" cellpadding="8" cellspacing="0" style="width:100%; margin-top:10px;">
-                <thead>
-                    <tr>
-                        <th>Medicine</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${medicineRows}
-                </tbody>
-            </table>
-
-            <br>
-            <p><b>Grand Total :</b> ₹${sale.grandTotal}</p>
-            `;
-
-            invoiceModal.style.display = "block";
-
-        }
-
-    });
-
-}
-
-// Close Modal Function
-window.closeModal = function(){
-
-    invoiceModal.style.display = "none";
-
-}
-
-// Print Invoice Function
+/**
+ * Print Invoice
+ */
 window.printInvoice = function () {
+  window.print();
+};
 
-    const printContents = document.getElementById("invoiceDetails").innerHTML;
-
-    const printWindow = window.open("", "", "width=800,height=600");
-
-    printWindow.document.write(`
-        <html>
-
-        <head>
-
-            <title>Invoice</title>
-
-            <style>
-
-                body{
-                    font-family:Arial,sans-serif;
-                    margin:30px;
-                }
-
-                h1{
-                    text-align:center;
-                }
-
-                table{
-                    width:100%;
-                    border-collapse:collapse;
-                    margin-top:15px;
-                }
-
-                table,th,td{
-                    border:1px solid black;
-                }
-
-                th,td{
-                    padding:8px;
-                    text-align:center;
-                }
-
-            </style>
-
-        </head>
-
-        <body>
-
-            <h1>MediTrack AI</h1>
-
-            ${printContents}
-
-        </body>
-
-        </html>
-    `);
-
-    printWindow.document.close();
-
-    printWindow.print();
-
-}
+// Initialize on DOM load
+document.addEventListener("DOMContentLoaded", loadSalesHistory);

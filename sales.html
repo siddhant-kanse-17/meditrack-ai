@@ -9,6 +9,8 @@ import {
 // DOM Elements
 const salesTableBody = document.getElementById("salesTableBody");
 const searchSalesInput = document.getElementById("searchSales");
+const invoiceModal = document.getElementById("invoiceModal");
+const modalContent = document.getElementById("modalContent");
 
 let allSales = [];
 
@@ -31,12 +33,14 @@ async function loadSalesHistory() {
     renderSalesTable(allSales);
   } catch (error) {
     console.error("Error fetching sales history:", error);
-    salesTableBody.innerHTML = `
-      <tr>
-        <td colspan="6" style="color: red; text-align: center;">
-          Failed to load sales entries. Please try again.
-        </td>
-      </tr>`;
+    if (salesTableBody) {
+      salesTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="color: red; text-align: center; padding: 12px;">
+            Failed to load sales entries. Please try again.
+          </td>
+        </tr>`;
+    }
   }
 }
 
@@ -44,10 +48,12 @@ async function loadSalesHistory() {
  * Render sales records into the DOM table
  */
 function renderSalesTable(salesData) {
+  if (!salesTableBody) return;
+
   if (salesData.length === 0) {
     salesTableBody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center;">No sales records found.</td>
+        <td colspan="6" style="text-align: center; padding: 12px;">No sales records found.</td>
       </tr>`;
     return;
   }
@@ -62,17 +68,18 @@ function renderSalesTable(salesData) {
         formattedDateTime = `${sale.date} ${sale.time || ""}`.trim();
       }
 
-      // Items count summary
-      const itemsCount = Array.isArray(sale.items) ? sale.items.length : 0;
-
       return `
-        <tr style="cursor: pointer;" onclick="openModal('${sale.id}')">
-          <td><strong>${sale.invoiceNo || sale.id}</strong></td>
+        <tr>
+          <td style="padding: 10px;"><strong>${sale.invoiceNo || sale.id}</strong></td>
           <td>${sale.customerName || "Walk-in Customer"}</td>
           <td>${sale.mobile || "N/A"}</td>
-          <td>${itemsCount} Item(s)</td>
           <td><strong>₹${Number(sale.grandTotal || sale.total || 0).toFixed(2)}</strong></td>
           <td>${formattedDateTime}</td>
+          <td>
+            <button onclick="openModal('${sale.id}')" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              View Details
+            </button>
+          </td>
         </tr>
       `;
     })
@@ -101,59 +108,58 @@ searchSalesInput?.addEventListener("input", (e) => {
 });
 
 /**
- * Attach global scope handlers for Modal and Printing
+ * Global Handlers for Modal and Printing
  */
 window.openModal = function (saleId) {
   const sale = allSales.find((s) => s.id === saleId);
-  if (!sale) return;
+  if (!sale || !invoiceModal || !modalContent) return;
 
-  const modalHtml = `
-    <div id="invoiceModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999;">
-      <div style="background:#fff; padding:24px; border-radius:8px; width:450px; max-width:90%; color:#333; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
-        <h2 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:8px;">💊 MediTrack AI - Invoice</h2>
-        <p><strong>Invoice No:</strong> ${sale.invoiceNo || sale.id}</p>
-        <p><strong>Customer:</strong> ${sale.customerName || "Walk-in Customer"}</p>
-        <p><strong>Mobile:</strong> ${sale.mobile || "N/A"}</p>
-        <hr style="border:none; border-top:1px dashed #ccc; margin:12px 0;">
-        
-        <h4>Purchased Items:</h4>
-        <ul style="padding-left:20px; max-height:150px; overflow-y:auto;">
-          ${
-            Array.isArray(sale.items)
-              ? sale.items
-                  .map(
-                    (item) =>
-                      `<li>${item.name} x ${item.quantity || 1} - ₹${(
-                        (item.price || 0) * (item.quantity || 1)
-                      ).toFixed(2)}</li>`
-                  )
-                  .join("")
-              : "<li>No item details available</li>"
-          }
-        </ul>
-        <hr style="border:none; border-top:1px dashed #ccc; margin:12px 0;">
-        
-        <h3 style="margin-bottom:20px;">Total Amount: ₹${Number(sale.grandTotal || sale.total || 0).toFixed(2)}</h3>
-        
-        <div style="display:flex; justify-content:flex-end; gap:10px;">
-          <button onclick="printInvoice()" style="padding:8px 16px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">Print Invoice</button>
-          <button onclick="closeModal()" style="padding:8px 16px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">Close</button>
-        </div>
-      </div>
+  modalContent.innerHTML = `
+    <div id="printableArea">
+      <h2 style="margin-top:0; border-bottom:2px solid #007bff; padding-bottom:8px; color: #007bff;">💊 MediTrack AI - Invoice</h2>
+      <p><strong>Invoice No:</strong> ${sale.invoiceNo || sale.id}</p>
+      <p><strong>Customer:</strong> ${sale.customerName || "Walk-in Customer"}</p>
+      <p><strong>Mobile:</strong> ${sale.mobile || "N/A"}</p>
+      <hr style="border:none; border-top:1px dashed #ccc; margin:12px 0;">
+      
+      <h4 style="margin-bottom: 8px;">Purchased Items:</h4>
+      <ul style="padding-left:20px; max-height:180px; overflow-y:auto; margin-top: 0;">
+        ${
+          Array.isArray(sale.items) && sale.items.length > 0
+            ? sale.items
+                .map(
+                  (item) =>
+                    `<li>${item.name || "Item"} x ${item.quantity || 1} - ₹${(
+                      (item.price || 0) * (item.quantity || 1)
+                    ).toFixed(2)}</li>`
+                )
+                .join("")
+            : "<li>No item details available</li>"
+        }
+      </ul>
+      <hr style="border:none; border-top:1px dashed #ccc; margin:12px 0;">
+      
+      <h3 style="margin-bottom:20px;">Total Amount: ₹${Number(sale.grandTotal || sale.total || 0).toFixed(2)}</h3>
+    </div>
+    
+    <div class="no-print" style="display:flex; justify-content:flex-end; gap:10px;">
+      <button onclick="printInvoice()" style="padding:8px 16px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">Print Invoice</button>
+      <button onclick="closeModal()" style="padding:8px 16px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">Close</button>
     </div>
   `;
 
-  document.body.insertAdjacentHTML("beforeend", modalHtml);
+  invoiceModal.style.display = "flex";
 };
 
 window.closeModal = function () {
-  const modal = document.getElementById("invoiceModal");
-  if (modal) modal.remove();
+  if (invoiceModal) {
+    invoiceModal.style.display = "none";
+  }
 };
 
 window.printInvoice = function () {
   window.print();
 };
 
-// Initialize table on load
+// Initialize table on DOM load
 document.addEventListener("DOMContentLoaded", loadSalesHistory);
