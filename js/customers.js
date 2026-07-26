@@ -1,9 +1,12 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, getDocs } from "firebase/firestore";
 
 const customersTableBody = document.getElementById("customersTableBody");
-const searchCustomerInput = document.getElementById("searchCustomer");
+const searchCustomerInput = document.getElementById("searchCustomerInput") || document.getElementById("searchCustomer");
+const sortSelect = document.getElementById("sortCustomersSelect");
+const resetCustBtn = document.getElementById("resetCustomersBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 let allCustomers = [];
 
@@ -71,10 +74,18 @@ async function loadCustomersData() {
             }
         });
 
+        // Also check localStorage for local customers fallback
+        const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
+        localCustomers.forEach(localCust => {
+            if (localCust.mobile && !customerMap[localCust.mobile]) {
+                customerMap[localCust.mobile] = localCust;
+            }
+        });
+
         allCustomers = Object.values(customerMap);
         
-        // Reversed array so latest customers show on top
-        renderCustomersTable([...allCustomers].reverse());
+        // Initial render with default sorting (Recent First)
+        applySearchAndSort();
 
     } catch (err) {
         console.error("Error loading customers:", err);
@@ -82,6 +93,37 @@ async function loadCustomersData() {
             customersTableBody.innerHTML = `<tr><td colspan="6" style="color:red;">Error loading customer records.</td></tr>`;
         }
     }
+}
+
+// Filter and Sort Handler
+function applySearchAndSort() {
+    let result = [...allCustomers];
+
+    // 1. Filter by Search Query
+    if (searchCustomerInput) {
+        const term = searchCustomerInput.value.toLowerCase().trim();
+        if (term !== "") {
+            result = result.filter(c => 
+                (c.name || "").toLowerCase().includes(term) || 
+                (c.mobile || "").toLowerCase().includes(term)
+            );
+        }
+    }
+
+    // 2. Sort Logic
+    const sortValue = sortSelect ? sortSelect.value : "recent";
+
+    if (sortValue === "recent") {
+        result.sort((a, b) => new Date(b.lastPurchase || 0) - new Date(a.lastPurchase || 0));
+    } else if (sortValue === "name") {
+        result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    } else if (sortValue === "purchaseHigh") {
+        result.sort((a, b) => (Number(b.totalPurchase) || 0) - (Number(a.totalPurchase) || 0));
+    } else if (sortValue === "purchaseLow") {
+        result.sort((a, b) => (Number(a.totalPurchase) || 0) - (Number(b.totalPurchase) || 0));
+    }
+
+    renderCustomersTable(result);
 }
 
 // Render Table Function
@@ -114,16 +156,49 @@ function renderCustomersTable(customersList) {
     });
 }
 
+// Event Listeners for Search & Sort
+if (searchCustomerInput) {
+    searchCustomerInput.addEventListener("input", applySearchAndSort);
+}
+
+if (sortSelect) {
+    sortSelect.addEventListener("change", applySearchAndSort);
+}
+
+// Reset Customers Button Handler
+if (resetCustBtn) {
+    resetCustBtn.addEventListener('click', function () {
+        const isConfirmed = window.confirm("⚠️ Kya aap sabhi Customers ka local data reset karna chahte hain?");
+        if (isConfirmed) {
+            localStorage.removeItem('customers');
+            alert("Local customers reset successfully!");
+            location.reload();
+        }
+    });
+}
+
+// Logout Listener
+if (logoutBtn) {
+    logoutBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        try {
+            await signOut(auth);
+            window.location.href = "index.html";
+        } catch (err) {
+            console.error("Logout Error:", err);
+        }
+    });
+}
+
 // Global Modal Handler to View Complete Printed Bill Layout
 window.viewCustomerBills = function(mobile) {
     const cust = allCustomers.find(c => c.mobile === mobile);
     if (!cust) return;
 
-    // Reversing individual bills array so newest bill shows on top inside modal
     let sortedBills = [...cust.bills].reverse();
 
     let billsListHtml = sortedBills.map((b, index) => {
-        let itemsRows = b.medicines.map(m => {
+        let itemsRows = (b.medicines || []).map(m => {
             const medName = m.medicine || m.name || 'Medicine';
             const price = Number(m.price || 0);
             const qty = Number(m.quantity || m.qty || 1);
@@ -226,15 +301,3 @@ window.closeCustomerModal = function() {
     const modal = document.getElementById("customerBillModal");
     if (modal) modal.remove();
 };
-
-// Search Filter Handler
-if (searchCustomerInput) {
-    searchCustomerInput.addEventListener("input", (e) => {
-        const term = e.target.value.toLowerCase().trim();
-        const filtered = allCustomers.filter(c => 
-            c.name.toLowerCase().includes(term) || 
-            c.mobile.toLowerCase().includes(term)
-        );
-        renderCustomersTable([...filtered].reverse());
-    });
-}
