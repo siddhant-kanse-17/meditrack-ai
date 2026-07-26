@@ -1,159 +1,133 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const welcomeHeading = document.querySelector(".content h1");
-const totalMedicines = document.getElementById("totalMedicines");
-const todaySales = document.getElementById("todaySales");
-const totalCustomers = document.getElementById("totalCustomers");
-const lowStockAlerts = document.getElementById("expiryAlerts") || document.getElementById("lowStockAlerts");
-
-// Search & Modal Elements
-const searchInput = document.getElementById("dashboardSearch") || document.getElementById("quickSearchInput");
-const searchResults = document.getElementById("searchResults");
-const medModal = document.getElementById("medModal");
-const modalName = document.getElementById("modalMedName");
-const modalPrice = document.getElementById("modalMedPrice");
-const modalStock = document.getElementById("modalMedStock");
-const modalMfg = document.getElementById("modalMedMfg");
-const modalExp = document.getElementById("modalMedExp");
-const closeModalBtn = document.getElementById("closeModalBtn");
-const sellMedBtn = document.getElementById("sellMedBtn");
+// DOM Elements
+const totalMedicinesEl = document.getElementById("totalMedicines");
+const todaysSalesEl = document.getElementById("todaysSales");
+const totalCustomersEl = document.getElementById("totalCustomers");
+const lowStockEl = document.getElementById("lowStockAlerts");
+const adminNameEl = document.getElementById("adminName") || document.querySelector("h1");
 const logoutBtn = document.getElementById("logoutBtn");
 
-let allMedicinesList = [];
-let selectedMedicineForBilling = null;
-
-// Helper: Format Month/Year
-function formatMonthYear(val) {
-    if (!val) return 'N/A';
-    const parts = val.split("-");
-    return parts.length === 2 ? `${parts[1]}/${parts[0]}` : val;
-}
-
-// 1. Auth & Initial Load
+// 1. Auth Guard & Initial Load
 onAuthStateChanged(auth, (user) => {
     if (!user) {
         window.location.href = "index.html";
     } else {
-        const displayName = user.displayName || "Admin";
-        if (welcomeHeading) {
-            welcomeHeading.innerText = `Welcome ${displayName} 👋`;
+        // Admin Name Setup
+        const savedName = localStorage.getItem("adminName") || "Admin";
+        if (adminNameEl && adminNameEl.tagName === "H1") {
+            adminNameEl.innerText = `Welcome ${savedName} 👋`;
         }
-        loadDashboardStats();
+
+        loadDashboardMetrics();
     }
 });
 
-// 2. Fetch Dashboard Stats & Build Medicine List
-async function loadDashboardStats() {
+// Helper: Format Date string to DD/MM/YYYY
+function getTodayFormattedDate() {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+async function loadDashboardMetrics() {
+    // A. Total Medicines & Low Stock Alerts
     try {
-        const medSnap = await getDocs(collection(db, "medicines"));
-        if (totalMedicines) totalMedicines.innerText = medSnap.size;
+        let medicines = [];
+        try {
+            const medSnap = await getDocs(collection(db, "medicines"));
+            medSnap.forEach(doc => medicines.push(doc.data()));
+        } catch(e) {
+            console.warn("Firestore medicines fetch failed, fallback to local:", e);
+        }
 
-        allMedicinesList = [];
-        let lowStockCount = 0;
+        if (medicines.length === 0) {
+            medicines = JSON.parse(localStorage.getItem("medicines")) || [];
+        }
 
-        medSnap.forEach((docSnap) => {
-            const med = { id: docSnap.id, ...docSnap.data() };
-            allMedicinesList.push(med);
+        if (totalMedicinesEl) totalMedicinesEl.innerText = medicines.length;
 
-            if (Number(med.stock || 0) <= 10) {
-                lowStockCount++;
+        const lowStockCount = medicines.filter(m => Number(m.stock || m.stockQty || 0) <= 10).length;
+        if (lowStockEl) lowStockEl.innerText = lowStockCount;
+
+    } catch(err) {
+        console.error("Metrics Medicines Error:", err);
+    }
+
+    // B. Today's Sales Calculation (Strict Today Date Matching)
+    try {
+        let sales = [];
+        try {
+            const salesSnap = await getDocs(collection(db, "sales"));
+            salesSnap.forEach(doc => sales.push(doc.data()));
+        } catch(e) {
+            console.warn("Firestore sales fetch failed, fallback to local:", e);
+        }
+
+        if (sales.length === 0) {
+            sales = JSON.parse(localStorage.getItem("sales")) || JSON.parse(localStorage.getItem("bills")) || [];
+        }
+
+        const todayStr = getTodayFormattedDate();
+        const todayDateNative = new Date().toLocaleDateString("en-IN");
+
+        let todayTotalSum = 0;
+
+        sales.forEach(s => {
+            let saleDate = s.date;
+
+            if (!saleDate && s.timestamp?.seconds) {
+                saleDate = new Date(s.timestamp.seconds * 1000).toLocaleDateString("en-IN");
+            } else if (!saleDate && s.timestamp) {
+                saleDate = new Date(s.timestamp).toLocaleDateString("en-IN");
+            }
+
+            // Match current date formats (en-IN or DD/MM/YYYY)
+            if (saleDate === todayStr || saleDate === todayDateNative) {
+                todayTotalSum += parseFloat(s.grandTotal || s.total || 0);
             }
         });
 
-        if (lowStockAlerts) lowStockAlerts.innerText = lowStockCount;
+        if (todaysSalesEl) {
+            todaysSalesEl.innerText = `₹${todayTotalSum.toFixed(0)}`;
+        }
 
-        // Sales Data
-        const salesSnap = await getDocs(collection(db, "sales"));
-        let totalSalesSum = 0;
-        const customerMobiles = new Set();
+    } catch(err) {
+        console.error("Metrics Sales Error:", err);
+        if (todaysSalesEl) todaysSalesEl.innerText = "₹0";
+    }
 
-        salesSnap.forEach((docSnap) => {
-            const sale = docSnap.data();
-            totalSalesSum += Number(sale.grandTotal || 0);
+    // C. Unique Customers Count
+    try {
+        let customers = [];
+        const localCust = JSON.parse(localStorage.getItem("customers")) || [];
+        if (localCust.length > 0) {
+            customers = localCust;
+        } else {
+            try {
+                const salesSnap = await getDocs(collection(db, "sales"));
+                const custSet = new Set();
+                salesSnap.forEach(doc => {
+                    const data = doc.data();
+                    const key = data.mobile || data.customerName || doc.id;
+                    custSet.add(key);
+                });
+                customers = Array.from(custSet);
+            } catch(e) {}
+        }
 
-            if (sale.mobile) {
-                customerMobiles.add(sale.mobile);
-            }
-        });
+        if (totalCustomersEl) totalCustomersEl.innerText = customers.length;
 
-        if (todaySales) todaySales.innerText = "₹" + totalSalesSum;
-        if (totalCustomers) totalCustomers.innerText = customerMobiles.size;
-
-    } catch (err) {
-        console.error("Dashboard Stats Error:", err);
+    } catch(err) {
+        console.error("Metrics Customers Error:", err);
     }
 }
 
-// 3. Search Medicine Live Listener
-if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
-        const term = e.target.value.toLowerCase().trim();
-        searchResults.innerHTML = "";
-
-        if (term === "") {
-            searchResults.style.display = "none";
-            return;
-        }
-
-        const filtered = allMedicinesList.filter(m => 
-            (m.name || "").toLowerCase().includes(term) || 
-            (m.barcode && m.barcode.toLowerCase() === term)
-        );
-
-        if (filtered.length === 0) {
-            searchResults.innerHTML = `<div style="padding: 10px; color: #888;">No medicine found</div>`;
-        } else {
-            filtered.forEach(med => {
-                const item = document.createElement("div");
-                item.style.cssText = "padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;";
-                item.innerHTML = `<b>${med.name}</b> <span style="float: right; color: #007bff;">₹${med.price}</span>`;
-                
-                item.addEventListener("click", () => {
-                    openMedicineModal(med);
-                    searchResults.style.display = "none";
-                    searchInput.value = "";
-                });
-
-                searchResults.appendChild(item);
-            });
-        }
-
-        searchResults.style.display = "block";
-    });
-}
-
-// 4. Open Modal Function
-function openMedicineModal(med) {
-    selectedMedicineForBilling = med;
-    if (modalName) modalName.innerText = med.name || "N/A";
-    if (modalPrice) modalPrice.innerText = med.price || 0;
-    if (modalStock) modalStock.innerText = med.stock || 0;
-    if (modalMfg) modalMfg.innerText = formatMonthYear(med.mfgDate);
-    if (modalExp) modalExp.innerText = formatMonthYear(med.expiryDate);
-
-    if (medModal) medModal.style.display = "flex";
-}
-
-// Close Modal
-if (closeModalBtn) {
-    closeModalBtn.addEventListener("click", () => {
-        if (medModal) medModal.style.display = "none";
-    });
-}
-
-// Redirect to Billing Page with Auto-Selected Medicine
-if (sellMedBtn) {
-    sellMedBtn.addEventListener("click", () => {
-        if (selectedMedicineForBilling) {
-            localStorage.setItem("selectedMedForBilling", JSON.stringify(selectedMedicineForBilling));
-            window.location.href = "billing.html";
-        }
-    });
-}
-
-// Logout Listener
+// Logout Handler
 if (logoutBtn) {
     logoutBtn.addEventListener("click", async (e) => {
         e.preventDefault();
@@ -162,74 +136,6 @@ if (logoutBtn) {
             window.location.href = "index.html";
         } catch (err) {
             console.error("Logout Error:", err);
-        }
-    });
-}
-
-// Reset Data Event Listener
-const resetBtn = document.getElementById('resetDataBtn');
-if (resetBtn) {
-    resetBtn.addEventListener('click', function() {
-        const confirmReset = confirm("Kya aap saara data format/reset karna chahte ho? Ye action undo nahi ho sakta.");
-        
-        if (confirmReset) {
-            localStorage.clear();
-            alert("Data reset ho gaya hai! Fresh start ke liye page reload ho raha hai.");
-            window.location.reload();
-        }
-    });
-}
-
-// 5. Camera Scan & Quick Search Auto-Trigger Logic
-let dashScanner = null;
-const dashScanBtn = document.getElementById('dashScanBtn');
-const closeDashScanBtn = document.getElementById('closeDashScanBtn');
-const dashModal = document.getElementById('dashScannerModal');
-
-if (dashScanBtn) {
-    dashScanBtn.addEventListener('click', function () {
-        if (dashModal) dashModal.style.display = 'flex';
-        
-        dashScanner = new Html5Qrcode("dash-reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
-
-        dashScanner.start(
-            { facingMode: "environment" },
-            config,
-            async (decodedText) => {
-                // Check Firestore list first, fallback to localStorage
-                const localMeds = JSON.parse(localStorage.getItem('medicines')) || [];
-                const combinedList = [...allMedicinesList, ...localMeds];
-                
-                const matchedMed = combinedList.find(m => m.barcode === decodedText || m.id === decodedText);
-
-                // Auto-fill and trigger search input
-                if (searchInput) {
-                    searchInput.value = matchedMed ? matchedMed.name : decodedText;
-                    searchInput.dispatchEvent(new Event('input'));
-                }
-
-                // Stop camera & close modal
-                await dashScanner.stop();
-                if (dashModal) dashModal.style.display = 'none';
-            }
-        ).catch(err => {
-            alert("Camera Permission Failed: " + err);
-            if (dashModal) dashModal.style.display = 'none';
-        });
-    });
-}
-
-if (closeDashScanBtn) {
-    closeDashScanBtn.addEventListener('click', function () {
-        if (dashScanner) {
-            dashScanner.stop().then(() => {
-                if (dashModal) dashModal.style.display = 'none';
-            }).catch(() => {
-                if (dashModal) dashModal.style.display = 'none';
-            });
-        } else {
-            if (dashModal) dashModal.style.display = 'none';
         }
     });
 }
