@@ -73,7 +73,7 @@ async function loadMedicines() {
 }
 loadMedicines();
 
-// --- DASHBOARD STYLE SCANNER WITH WORKING ZOOM ---
+// --- SCANNER LOGIC WITH WORKING TAP ZOOM ---
 if (startScanBtn) {
   startScanBtn.addEventListener("click", () => {
     if (scannerModal) scannerModal.style.display = "flex";
@@ -82,7 +82,7 @@ if (startScanBtn) {
       html5QrCode = new Html5Qrcode("reader");
     }
 
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
 
     html5QrCode.start(
       { facingMode: "environment" },
@@ -93,46 +93,52 @@ if (startScanBtn) {
       },
       () => {}
     ).then(() => {
-      setupDashboardStyleZoom();
+      attachZoomListeners();
     }).catch(err => {
-      console.error("Camera access failed:", err);
-      alert("Camera permission is required!");
+      console.error("Camera error:", err);
+      alert("Camera permission required.");
       stopScanner();
     });
   });
 }
 
-function setupDashboardStyleZoom() {
+function attachZoomListeners() {
   const z1 = document.getElementById("zoom1xBtn");
   const z2 = document.getElementById("zoom2xBtn");
-  const videoEl = document.querySelector("#reader video");
+
+  const doZoom = (scaleFactor) => {
+    const videoTag = document.querySelector("#reader video");
+    if (videoTag) {
+      videoTag.style.transition = "transform 0.2s ease-in-out";
+      videoTag.style.transform = `scale(${scaleFactor})`;
+      videoTag.style.transformOrigin = "center center";
+    }
+
+    try {
+      if (html5QrCode) {
+        const track = html5QrCode.getRunningTrack();
+        const caps = track.getCapabilities();
+        if (caps && caps.zoom) {
+          track.applyConstraints({ advanced: [{ zoom: scaleFactor }] });
+        }
+      }
+    } catch(e) {
+      console.warn("Hardware zoom warning:", e);
+    }
+  };
 
   if (z1) {
-    z1.onclick = () => {
-      if (videoEl) videoEl.style.transform = "scale(1)";
-      applyHardwareZoom(1);
+    z1.onclick = (e) => {
+      e.stopPropagation();
+      doZoom(1);
     };
   }
 
   if (z2) {
-    z2.onclick = () => {
-      if (videoEl) videoEl.style.transform = "scale(1.5)";
-      applyHardwareZoom(2);
+    z2.onclick = (e) => {
+      e.stopPropagation();
+      doZoom(1.6);
     };
-  }
-}
-
-function applyHardwareZoom(zoomVal) {
-  try {
-    if (html5QrCode) {
-      const track = html5QrCode.getRunningTrack();
-      const capabilities = track.getCapabilities();
-      if (capabilities && capabilities.zoom) {
-        track.applyConstraints({ advanced: [{ zoom: zoomVal }] });
-      }
-    }
-  } catch (e) {
-    console.warn("Hardware zoom unsupported");
   }
 }
 
