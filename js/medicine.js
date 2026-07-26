@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 
 const medForm = document.getElementById("medicineForm");
+const medBarcodeInput = document.getElementById("medBarcode");
 const medNameInput = document.getElementById("medName");
 const medPriceInput = document.getElementById("medPrice");
 const medStockInput = document.getElementById("medStock");
@@ -50,7 +51,7 @@ async function loadMedicines() {
         medTableBody.innerHTML = "";
 
         if (querySnapshot.empty) {
-            medTableBody.innerHTML = `<tr><td colspan="6">No medicines added yet.</td></tr>`;
+            medTableBody.innerHTML = `<tr><td colspan="7">No medicines added yet.</td></tr>`;
             return;
         }
 
@@ -74,6 +75,7 @@ function renderTable(medicinesList) {
         const tr = document.createElement("tr");
 
         tr.innerHTML = `
+            <td><code>${med.barcode || 'N/A'}</code></td>
             <td><b>${med.name}</b></td>
             <td>₹${med.price}</td>
             <td>${med.stock}</td>
@@ -97,6 +99,7 @@ function renderTable(medicinesList) {
             if (!medToEdit) return;
 
             // Fill input fields with existing values
+            if (medBarcodeInput) medBarcodeInput.value = medToEdit.barcode || "";
             medNameInput.value = medToEdit.name || "";
             medPriceInput.value = medToEdit.price || "";
             medStockInput.value = medToEdit.stock || "";
@@ -131,6 +134,7 @@ medForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const medData = {
+        barcode: medBarcodeInput ? medBarcodeInput.value.trim() : "",
         name: medNameInput.value.trim(),
         price: Number(medPriceInput.value),
         stock: Number(medStockInput.value),
@@ -162,9 +166,67 @@ medForm.addEventListener("submit", async (e) => {
     }
 });
 
-// Search Filter Handler
-searchInput.addEventListener("input", (e) => {
-    const term = e.target.value.toLowerCase();
-    const filtered = allMedicines.filter(m => m.name.toLowerCase().includes(term));
-    renderTable(filtered);
-});
+// Search Filter Handler (Supports Name & Barcode Search)
+if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = allMedicines.filter(m => 
+            (m.name && m.name.toLowerCase().includes(term)) || 
+            (m.barcode && m.barcode.toLowerCase().includes(term))
+        );
+        renderTable(filtered);
+    });
+}
+
+// -------------------------------------------------------------
+// Barcode Scanner Logic for Adding Medicines
+// -------------------------------------------------------------
+
+let medScanner = null;
+const scanBtn = document.getElementById('scanBarcodeBtn');
+const closeBtn = document.getElementById('closeMedScanBtn');
+const modal = document.getElementById('medScannerModal');
+
+if (scanBtn) {
+  scanBtn.addEventListener('click', function() {
+    if (modal) modal.style.display = 'flex';
+    medScanner = new Html5Qrcode("med-reader");
+
+    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+    medScanner.start(
+      { facingMode: "environment" }, 
+      config, 
+      (decodedText) => {
+        // Barcode scan hote hi automatic input field me fill kar dega
+        if (medBarcodeInput) {
+          medBarcodeInput.value = decodedText;
+        }
+
+        // Camera stop & close
+        medScanner.stop().then(() => {
+          if (modal) modal.style.display = 'none';
+        }).catch(() => {
+          if (modal) modal.style.display = 'none';
+        });
+      }
+    ).catch(err => {
+      alert("Camera Start Fail: " + err);
+      if (modal) modal.style.display = 'none';
+    });
+  });
+}
+
+if (closeBtn) {
+  closeBtn.addEventListener('click', function() {
+    if (medScanner) {
+      medScanner.stop().then(() => {
+        if (modal) modal.style.display = 'none';
+      }).catch(() => {
+        if (modal) modal.style.display = 'none';
+      });
+    } else {
+      if (modal) modal.style.display = 'none';
+    }
+  });
+}
