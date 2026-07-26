@@ -42,64 +42,27 @@ if (document.getElementById("billTime")) {
   document.getElementById("billTime").innerText = formattedTime;
 }
 
+/**
+ * Flexible Helper to catch Customer Details from DOM inputs
+ */
 function getCustomerDetails() {
-  const nameEl = document.getElementById("customerName");
-  const phoneEl = document.getElementById("customerPhone");
+  const nameEl = document.getElementById("customerName") || 
+                 document.getElementById("custName") || 
+                 document.getElementById("customerNameInput") ||
+                 document.querySelector('input[placeholder*="Customer"]') ||
+                 document.querySelector('input[placeholder*="Name"]');
+
+  const phoneEl = document.getElementById("customerPhone") || 
+                  document.getElementById("custPhone") || 
+                  document.getElementById("mobile") || 
+                  document.getElementById("customerMobileInput") ||
+                  document.querySelector('input[placeholder*="Mobile"]') ||
+                  document.querySelector('input[placeholder*="Phone"]');
 
   const rawName = nameEl && nameEl.value.trim() !== "" ? nameEl.value.trim() : "Walk-in Customer";
   const rawPhone = phoneEl && phoneEl.value.trim() !== "" ? phoneEl.value.trim() : "N/A";
 
   return { name: rawName, phone: rawPhone };
-}
-
-function saveCustomerToLocal(customerName, mobileNumber, billTotalAmount, itemsList) {
-  let cleanName = (customerName || "").trim();
-  let cleanMobile = (mobileNumber || "").trim();
-  const amountToIncrement = parseFloat(billTotalAmount) || 0;
-
-  if (!cleanName || cleanName === "-") cleanName = "Walk-in Customer";
-  if (!cleanMobile || cleanMobile === "-") cleanMobile = "N/A";
-
-  const currentBillRecord = {
-    invoiceNo: invoiceNo,
-    date: formattedDate,
-    time: formattedTime,
-    grandTotal: amountToIncrement,
-    medicines: itemsList || []
-  };
-
-  try {
-    let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
-
-    const existingIndex = localCustomers.findIndex(c => 
-      (cleanMobile !== "N/A" && String(c.mobile).trim() === cleanMobile) ||
-      (cleanMobile === "N/A" && String(c.name).toLowerCase() === cleanName.toLowerCase())
-    );
-
-    if (existingIndex !== -1) {
-      localCustomers[existingIndex].name = cleanName;
-      localCustomers[existingIndex].totalBills = (parseInt(localCustomers[existingIndex].totalBills) || 1) + 1;
-      localCustomers[existingIndex].totalPurchase = (parseFloat(localCustomers[existingIndex].totalPurchase) || 0) + amountToIncrement;
-      localCustomers[existingIndex].lastPurchase = formattedDate;
-      if (!localCustomers[existingIndex].bills) localCustomers[existingIndex].bills = [];
-      localCustomers[existingIndex].bills.push(currentBillRecord);
-    } else {
-      localCustomers.push({
-        id: "CUST-" + Date.now(),
-        name: cleanName,
-        mobile: cleanMobile,
-        totalBills: 1,
-        totalPurchase: amountToIncrement,
-        lastPurchase: formattedDate,
-        bills: [currentBillRecord]
-      });
-    }
-
-    localStorage.setItem('customers', JSON.stringify(localCustomers));
-    localStorage.removeItem('customersReset'); // Remove reset lock on new bill
-  } catch (e) {
-    console.warn("LocalStorage customer write warning:", e);
-  }
 }
 
 // 1. Fetch & Render Medicine Dropdown
@@ -219,7 +182,7 @@ if (addBillBtn) {
   });
 }
 
-// 3. Generate Bill
+// 3. Generate Bill (Direct Reliable Sync)
 if (generateBillBtn) {
   generateBillBtn.addEventListener("click", async () => {
     if (billItems.length === 0) {
@@ -233,17 +196,59 @@ if (generateBillBtn) {
       generateBillBtn.disabled = true;
       generateBillBtn.innerText = "Saving Bill...";
 
-      // 1. Save to LocalStorage
-      saveCustomerToLocal(customerName, customerPhone, totalAmount, billItems);
+      const cleanName = customerName || "Walk-in Customer";
+      const cleanPhone = customerPhone || "N/A";
 
-      // 2. Save Sales Record in Firestore
+      const currentBillRecord = {
+        invoiceNo: invoiceNo,
+        date: formattedDate,
+        time: formattedTime,
+        grandTotal: totalAmount,
+        medicines: billItems
+      };
+
+      // ---------------------------------------------------------
+      // 1. GUARANTEED LOCAL STORAGE SAVE
+      // ---------------------------------------------------------
+      let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
+      const existingIndex = localCustomers.findIndex(c => 
+        (cleanPhone !== "N/A" && String(c.mobile).trim() === cleanPhone) ||
+        (cleanPhone === "N/A" && String(c.name).toLowerCase() === cleanName.toLowerCase())
+      );
+
+      if (existingIndex !== -1) {
+        localCustomers[existingIndex].name = cleanName;
+        localCustomers[existingIndex].totalBills = (parseInt(localCustomers[existingIndex].totalBills) || 1) + 1;
+        localCustomers[existingIndex].totalPurchase = (parseFloat(localCustomers[existingIndex].totalPurchase) || 0) + totalAmount;
+        localCustomers[existingIndex].lastPurchase = formattedDate;
+        if (!localCustomers[existingIndex].bills) localCustomers[existingIndex].bills = [];
+        localCustomers[existingIndex].bills.push(currentBillRecord);
+      } else {
+        localCustomers.push({
+          id: "CUST-" + Date.now(),
+          name: cleanName,
+          mobile: cleanPhone,
+          totalBills: 1,
+          totalPurchase: totalAmount,
+          lastPurchase: formattedDate,
+          bills: [currentBillRecord]
+        });
+      }
+
+      // Explicitly write to LocalStorage
+      localStorage.setItem('customers', JSON.stringify(localCustomers));
+      localStorage.removeItem('customersReset'); // Remove any stale reset flag
+
+      // ---------------------------------------------------------
+      // 2. FIRESTORE SAVE (SALES COLLECTION)
+      // ---------------------------------------------------------
       await addDoc(collection(db, "sales"), {
         invoiceNo: invoiceNo,
-        customerName: customerName,
-        customer: customerName,
-        name: customerName,
-        mobile: customerPhone,
-        customerPhone: customerPhone,
+        customerName: cleanName,
+        customer: cleanName,
+        name: cleanName,
+        mobile: cleanPhone,
+        customerPhone: cleanPhone,
         medicines: billItems,
         items: billItems,
         grandTotal: totalAmount,
@@ -255,10 +260,8 @@ if (generateBillBtn) {
 
       alert("Bill Generated & Saved Successfully! 🎉");
 
-      // Small delay guarantees LocalStorage writes properly before DOM unloads
-      setTimeout(() => {
-        window.location.href = "customers.html";
-      }, 300);
+      // Redirect after LocalStorage write finishes
+      window.location.href = "customers.html";
 
     } catch (err) {
       alert("Error saving bill: " + err.message);
