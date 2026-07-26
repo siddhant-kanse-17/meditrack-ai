@@ -1,165 +1,68 @@
-import { db } from "./firebase-config.js";
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-// DOM Elements
-const salesTableBody = document.getElementById("salesTableBody");
-const searchSalesInput = document.getElementById("searchSales");
-const invoiceModal = document.getElementById("invoiceModal");
-const modalContent = document.getElementById("modalContent");
-
-let allSales = [];
-
-/**
- * Fetch and load sales history from Firestore
- */
-async function loadSalesHistory() {
-  try {
-    const salesQuery = query(
-      collection(db, "sales"),
-      orderBy("timestamp", "desc")
-    );
-    const querySnapshot = await getDocs(salesQuery);
-
-    allSales = [];
-    querySnapshot.forEach((doc) => {
-      allSales.push({ id: doc.id, ...doc.data() });
-    });
-
-    renderSalesTable(allSales);
-  } catch (error) {
-    console.error("Error fetching sales history:", error);
-    if (salesTableBody) {
-      salesTableBody.innerHTML = `
-        <tr>
-          <td colspan="6" style="color: red; text-align: center; padding: 12px;">
-            Failed to load sales entries. Please try again.
-          </td>
-        </tr>`;
-    }
-  }
-}
-
-/**
- * Render sales records into the DOM table
- */
-function renderSalesTable(salesData) {
-  if (!salesTableBody) return;
-
-  if (salesData.length === 0) {
-    salesTableBody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align: center; padding: 12px;">No sales records found.</td>
-      </tr>`;
-    return;
-  }
-
-  salesTableBody.innerHTML = salesData
-    .map((sale) => {
-      // Handle Date formatting
-      let formattedDateTime = "N/A";
-      if (sale.timestamp?.toDate) {
-        formattedDateTime = sale.timestamp.toDate().toLocaleString();
-      } else if (sale.date) {
-        formattedDateTime = `${sale.date} ${sale.time || ""}`.trim();
-      }
-
-      return `
-        <tr>
-          <td style="padding: 10px;"><strong>${sale.invoiceNo || sale.id}</strong></td>
-          <td>${sale.customerName || "Walk-in Customer"}</td>
-          <td>${sale.mobile || "N/A"}</td>
-          <td><strong>₹${Number(sale.grandTotal || sale.total || 0).toFixed(2)}</strong></td>
-          <td>${formattedDateTime}</td>
-          <td>
-            <button onclick="openModal('${sale.id}')" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-              View Details
-            </button>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
-}
-
-/**
- * Search/Filter logic for Invoice, Name, or Mobile Number
- */
-searchSalesInput?.addEventListener("input", (e) => {
-  const searchTerm = e.target.value.toLowerCase().trim();
-
-  const filteredSales = allSales.filter((sale) => {
-    const invoice = (sale.invoiceNo || sale.id).toLowerCase();
-    const customer = (sale.customerName || "").toLowerCase();
-    const mobile = (sale.mobile || "").toLowerCase();
-
-    return (
-      invoice.includes(searchTerm) ||
-      customer.includes(searchTerm) ||
-      mobile.includes(searchTerm)
-    );
-  });
-
-  renderSalesTable(filteredSales);
-});
-
-/**
- * Global Handlers for Modal and Printing
- */
-window.openModal = function (saleId) {
-  const sale = allSales.find((s) => s.id === saleId);
-  if (!sale || !invoiceModal || !modalContent) return;
-
-  modalContent.innerHTML = `
-    <div id="printableArea">
-      <h2 style="margin-top:0; border-bottom:2px solid #007bff; padding-bottom:8px; color: #007bff;">💊 MediTrack AI - Invoice</h2>
-      <p><strong>Invoice No:</strong> ${sale.invoiceNo || sale.id}</p>
-      <p><strong>Customer:</strong> ${sale.customerName || "Walk-in Customer"}</p>
-      <p><strong>Mobile:</strong> ${sale.mobile || "N/A"}</p>
-      <hr style="border:none; border-top:1px dashed #ccc; margin:12px 0;">
-      
-      <h4 style="margin-bottom: 8px;">Purchased Items:</h4>
-      <ul style="padding-left:20px; max-height:180px; overflow-y:auto; margin-top: 0;">
-        ${
-          Array.isArray(sale.items) && sale.items.length > 0
-            ? sale.items
-                .map(
-                  (item) =>
-                    `<li>${item.name || "Item"} x ${item.quantity || 1} - ₹${(
-                      (item.price || 0) * (item.quantity || 1)
-                    ).toFixed(2)}</li>`
-                )
-                .join("")
-            : "<li>No item details available</li>"
-        }
-      </ul>
-      <hr style="border:none; border-top:1px dashed #ccc; margin:12px 0;">
-      
-      <h3 style="margin-bottom:20px;">Total Amount: ₹${Number(sale.grandTotal || sale.total || 0).toFixed(2)}</h3>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediTrack-AI | Sales History</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Clean layout styling */
+    .sales-container { padding: 20px; }
+    .sales-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .sales-table th, .sales-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    .sales-table th { background-color: #007bff; color: white; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 9999; }
+    .modal-box { background: white; padding: 25px; border-radius: 10px; width: 400px; max-width: 90%; }
+  </style>
+</head>
+<body>
+  <div class="app-container" style="display: flex;">
+    <!-- Sidebar -->
+    <div class="sidebar" style="width: 250px; min-height: 100vh; background: #0069d9; color: white; padding: 20px;">
+      <h2>💊 MediTrack-AI</h2>
+      <hr style="opacity: 0.3; margin-bottom: 20px;">
+      <p><a href="dashboard.html" style="color: white; text-decoration: none;">🏠 Dashboard</a></p>
+      <p><a href="medicines.html" style="color: white; text-decoration: none;">💊 Medicines</a></p>
+      <p><a href="billing.html" style="color: white; text-decoration: none;">💰 Billing</a></p>
+      <p><a href="customers.html" style="color: white; text-decoration: none;">👥 Customers</a></p>
+      <p><a href="sales.html" style="color: white; text-decoration: none; font-weight: bold;">📊 Sales History</a></p>
     </div>
-    
-    <div class="no-print" style="display:flex; justify-content:flex-end; gap:10px;">
-      <button onclick="printInvoice()" style="padding:8px 16px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">Print Invoice</button>
-      <button onclick="closeModal()" style="padding:8px 16px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">Close</button>
+
+    <!-- Main Content Area -->
+    <div class="main-content" style="flex: 1; padding: 25px;">
+      <h2>Sales History 📊</h2>
+
+      <!-- Search Input -->
+      <div style="margin-bottom: 20px;">
+        <input type="text" id="searchSales" placeholder="Search by Invoice, Name or Mobile..." style="padding: 10px; width: 320px; border: 1px solid #ccc; border-radius: 6px;">
+      </div>
+
+      <!-- Sales Table -->
+      <table class="sales-table">
+        <thead>
+          <tr>
+            <th>Invoice / ID</th>
+            <th>Customer</th>
+            <th>Mobile</th>
+            <th>Total Amount</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="salesTableBody">
+          <tr><td colspan="5" style="text-align:center;">Loading sales records...</td></tr>
+        </tbody>
+      </table>
     </div>
-  `;
+  </div>
 
-  invoiceModal.style.display = "flex";
-};
+  <!-- Modal Container -->
+  <div id="invoiceModal" class="modal-overlay">
+    <div class="modal-box">
+      <div id="modalContent"></div>
+    </div>
+  </div>
 
-window.closeModal = function () {
-  if (invoiceModal) {
-    invoiceModal.style.display = "none";
-  }
-};
-
-window.printInvoice = function () {
-  window.print();
-};
-
-// Initialize table on DOM load
-document.addEventListener("DOMContentLoaded", loadSalesHistory);
+  <!-- IMPORTANT: JavaScript Module Tag -->
+  <script type="module" src="js/sales.js"></script>
+</body>
+</html>
