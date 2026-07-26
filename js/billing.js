@@ -341,6 +341,9 @@ if (generateBillBtn) {
       generateBillBtn.disabled = true;
       generateBillBtn.innerText = "Saving Bill...";
 
+      // Clear customers reset lock so new billing displays immediately
+      localStorage.removeItem('customersReset');
+
       // Save sales entry
       await addDoc(collection(db, "sales"), {
         invoiceNo: invoiceNo,

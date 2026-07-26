@@ -22,16 +22,26 @@ onAuthStateChanged(auth, (user) => {
 
 // 2. Fetch Sales from Firestore & LocalStorage, then Group by Customer Mobile
 async function loadCustomersData() {
-  if (localStorage.getItem('customersReset') === 'true') {
-    allCustomers = [];
-    renderEmptyTable();
-    return;
-  }
-
   try {
     const customerMap = {};
 
-    // 2A. Fetch Firestore Sales & Group them
+    // 2A. Sync LocalStorage Saved Customers First
+    const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
+    localCustomers.forEach(localCust => {
+      const mob = String(localCust.mobile || "N/A").trim();
+      if (mob !== "N/A" && mob !== "") {
+        customerMap[mob] = {
+          name: localCust.name || "Walk-in Customer",
+          mobile: mob,
+          totalBills: Number(localCust.totalBills || 1),
+          totalPurchase: Number(localCust.totalPurchase || 0),
+          lastPurchase: localCust.lastPurchase || "N/A",
+          bills: localCust.bills || []
+        };
+      }
+    });
+
+    // 2B. Fetch Firestore Sales & Group them
     try {
       const salesSnapshot = await getDocs(collection(db, "sales"));
       if (!salesSnapshot.empty) {
@@ -69,10 +79,13 @@ async function loadCustomersData() {
             if (customerMap[mobile].name.startsWith("Customer (") && !name.startsWith("Customer (")) {
               customerMap[mobile].name = name;
             }
-            customerMap[mobile].totalBills += 1;
-            customerMap[mobile].totalPurchase += amount;
-            customerMap[mobile].lastPurchase = date;
-            customerMap[mobile].bills.push(billRecord);
+            // Avoid duplicate counting if already loaded from LocalStorage
+            if (!customerMap[mobile].bills.some(b => b.invoiceNo === billRecord.invoiceNo)) {
+              customerMap[mobile].totalBills += 1;
+              customerMap[mobile].totalPurchase += amount;
+              customerMap[mobile].lastPurchase = date;
+              customerMap[mobile].bills.push(billRecord);
+            }
           }
         });
       }
@@ -80,23 +93,18 @@ async function loadCustomersData() {
       console.warn("Firestore customer fetch failed, fallback to LocalStorage:", e);
     }
 
-    // 2B. Sync LocalStorage Saved Customers
-    const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
-    localCustomers.forEach(localCust => {
-      const mob = String(localCust.mobile || "N/A").trim();
-      if (mob !== "N/A" && !customerMap[mob]) {
-        customerMap[mob] = {
-          name: localCust.name || "Walk-in Customer",
-          mobile: mob,
-          totalBills: Number(localCust.totalBills || 1),
-          totalPurchase: Number(localCust.totalPurchase || 0),
-          lastPurchase: localCust.lastPurchase || "N/A",
-          bills: localCust.bills || []
-        };
-      }
-    });
-
     allCustomers = Object.values(customerMap);
+
+    // If reset was clicked AND no new customers exist
+    if (localStorage.getItem('customersReset') === 'true' && allCustomers.length === 0) {
+      renderEmptyTable();
+      return;
+    }
+
+    // If new customers exist, clear the reset lock
+    if (allCustomers.length > 0) {
+      localStorage.removeItem('customersReset');
+    }
 
     if (allCustomers.length === 0) {
       renderEmptyTable();
