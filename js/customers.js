@@ -10,7 +10,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 let allCustomers = [];
 
-// Auth Guard Check
+// 1. Auth Guard Check
 onAuthStateChanged(auth, (user) => {
     if (!user) {
         window.location.href = "index.html";
@@ -19,62 +19,56 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// Fetch Sales & Group by Customer Mobile
+// 2. Fetch Sales & Group by Customer Mobile
 async function loadCustomersData() {
     try {
         const salesSnapshot = await getDocs(collection(db, "sales"));
-        
-        if (salesSnapshot.empty) {
-            if (customersTableBody) {
-                customersTableBody.innerHTML = `<tr><td colspan="6">No customer data found.</td></tr>`;
-            }
-            return;
-        }
-
         const customerMap = {};
 
-        salesSnapshot.forEach((docSnap) => {
-            const sale = docSnap.data();
-            const mobile = sale.mobile || sale.customerPhone || sale.customerMobile || "N/A";
-            
-            let name = sale.customerName || sale.customer || sale.name || sale.custName;
-            if (!name || name.trim() === "" || name === "Guest Customer") {
-                name = mobile !== "N/A" ? `Customer (${mobile.slice(-4)})` : "Walk-in Customer";
-            }
-
-            const amount = Number(sale.grandTotal || sale.totalAmount || 0);
-            const date = sale.date || "N/A";
-
-            const billRecord = {
-                id: docSnap.id,
-                invoiceNo: sale.invoiceNo || docSnap.id,
-                grandTotal: amount,
-                date: date,
-                time: sale.time || "",
-                medicines: sale.medicines || sale.items || []
-            };
-
-            if (!customerMap[mobile]) {
-                customerMap[mobile] = {
-                    name: name,
-                    mobile: mobile,
-                    totalBills: 1,
-                    totalPurchase: amount,
-                    lastPurchase: date,
-                    bills: [billRecord]
-                };
-            } else {
-                if (customerMap[mobile].name.startsWith("Customer (") && !name.startsWith("Customer (")) {
-                    customerMap[mobile].name = name;
+        if (!salesSnapshot.empty) {
+            salesSnapshot.forEach((docSnap) => {
+                const sale = docSnap.data();
+                const mobile = sale.mobile || sale.customerPhone || sale.customerMobile || "N/A";
+                
+                let name = sale.customerName || sale.customer || sale.name || sale.custName;
+                if (!name || name.trim() === "" || name === "Guest Customer") {
+                    name = mobile !== "N/A" ? `Customer (${mobile.slice(-4)})` : "Walk-in Customer";
                 }
-                customerMap[mobile].totalBills += 1;
-                customerMap[mobile].totalPurchase += amount;
-                customerMap[mobile].lastPurchase = date;
-                customerMap[mobile].bills.push(billRecord);
-            }
-        });
 
-        // Also check localStorage for local customers fallback
+                const amount = Number(sale.grandTotal || sale.totalAmount || 0);
+                const date = sale.date || "N/A";
+
+                const billRecord = {
+                    id: docSnap.id,
+                    invoiceNo: sale.invoiceNo || docSnap.id,
+                    grandTotal: amount,
+                    date: date,
+                    time: sale.time || "",
+                    medicines: sale.medicines || sale.items || []
+                };
+
+                if (!customerMap[mobile]) {
+                    customerMap[mobile] = {
+                        name: name,
+                        mobile: mobile,
+                        totalBills: 1,
+                        totalPurchase: amount,
+                        lastPurchase: date,
+                        bills: [billRecord]
+                    };
+                } else {
+                    if (customerMap[mobile].name.startsWith("Customer (") && !name.startsWith("Customer (")) {
+                        customerMap[mobile].name = name;
+                    }
+                    customerMap[mobile].totalBills += 1;
+                    customerMap[mobile].totalPurchase += amount;
+                    customerMap[mobile].lastPurchase = date;
+                    customerMap[mobile].bills.push(billRecord);
+                }
+            });
+        }
+
+        // Check LocalStorage for local fallback records
         const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
         localCustomers.forEach(localCust => {
             if (localCust.mobile && !customerMap[localCust.mobile]) {
@@ -84,22 +78,29 @@ async function loadCustomersData() {
 
         allCustomers = Object.values(customerMap);
         
-        // Initial render with default sorting (Recent First)
+        if (allCustomers.length === 0) {
+            if (customersTableBody) {
+                customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No customer records found.</td></tr>`;
+            }
+            return;
+        }
+
+        // Apply filters & render
         applySearchAndSort();
 
     } catch (err) {
         console.error("Error loading customers:", err);
         if (customersTableBody) {
-            customersTableBody.innerHTML = `<tr><td colspan="6" style="color:red;">Error loading customer records.</td></tr>`;
+            customersTableBody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Error loading customer records.</td></tr>`;
         }
     }
 }
 
-// Filter and Sort Handler
+// 3. Filter and Sort Handler
 function applySearchAndSort() {
     let result = [...allCustomers];
 
-    // 1. Filter by Search Query
+    // Filter by Search Term
     if (searchCustomerInput) {
         const term = searchCustomerInput.value.toLowerCase().trim();
         if (term !== "") {
@@ -110,7 +111,7 @@ function applySearchAndSort() {
         }
     }
 
-    // 2. Sort Logic
+    // Sort Logic
     const sortValue = sortSelect ? sortSelect.value : "recent";
 
     if (sortValue === "recent") {
@@ -126,13 +127,13 @@ function applySearchAndSort() {
     renderCustomersTable(result);
 }
 
-// Render Table Function
+// 4. Render Table Function
 function renderCustomersTable(customersList) {
     if (!customersTableBody) return;
     customersTableBody.innerHTML = "";
 
     if (customersList.length === 0) {
-        customersTableBody.innerHTML = `<tr><td colspan="6">No matching customers found.</td></tr>`;
+        customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No matching customers found.</td></tr>`;
         return;
     }
 
@@ -156,7 +157,7 @@ function renderCustomersTable(customersList) {
     });
 }
 
-// Event Listeners for Search & Sort
+// 5. Dynamic Event Listeners
 if (searchCustomerInput) {
     searchCustomerInput.addEventListener("input", applySearchAndSort);
 }
@@ -165,19 +166,27 @@ if (sortSelect) {
     sortSelect.addEventListener("change", applySearchAndSort);
 }
 
-// Reset Customers Button Handler
+// Reset Customers Data Sheet Handler
 if (resetCustBtn) {
     resetCustBtn.addEventListener('click', function () {
-        const isConfirmed = window.confirm("⚠️ Kya aap sabhi Customers ka local data reset karna chahte hain?");
+        const isConfirmed = window.confirm("⚠️ Kya aap poori Customer Data Sheet permanently delete karna chahte hain?");
+        
         if (isConfirmed) {
+            // Clear local cache storage
             localStorage.removeItem('customers');
-            alert("Local customers reset successfully!");
-            location.reload();
+            allCustomers = [];
+
+            // Update UI immediately
+            if (customersTableBody) {
+                customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #888;">No customer records found.</td></tr>`;
+            }
+
+            alert("Pura customer data sheet reset ho gaya hai!");
         }
     });
 }
 
-// Logout Listener
+// Logout Handler
 if (logoutBtn) {
     logoutBtn.addEventListener("click", async (e) => {
         e.preventDefault();
@@ -190,7 +199,7 @@ if (logoutBtn) {
     });
 }
 
-// Global Modal Handler to View Complete Printed Bill Layout
+// 6. Global Modal Handler for Detailed Invoices
 window.viewCustomerBills = function(mobile) {
     const cust = allCustomers.find(c => c.mobile === mobile);
     if (!cust) return;
@@ -270,7 +279,7 @@ window.viewCustomerBills = function(mobile) {
     document.body.insertAdjacentHTML("beforeend", modalHtml);
 };
 
-// Single Bill Print Handler
+// Single Bill Print Execution
 window.printSingleBill = function(billDivId) {
     const printContent = document.getElementById(billDivId).outerHTML;
     const printWindow = window.open("", "_blank");
@@ -297,6 +306,7 @@ window.printSingleBill = function(billDivId) {
     }, 250);
 };
 
+// Modal Close Helper
 window.closeCustomerModal = function() {
     const modal = document.getElementById("customerBillModal");
     if (modal) modal.remove();
