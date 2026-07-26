@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { collection, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // DOM Elements
 const customersTableBody = document.getElementById("customersTableBody") || document.querySelector("tbody");
@@ -113,25 +113,22 @@ function renderEmptyTable() {
   }
 }
 
-// 4. Accurate Date Parser (Converts DD/MM/YYYY to Exact Timestamp)
+// 4. Accurate Date Parser
 function parseDateToTimestamp(dateStr) {
   if (!dateStr || dateStr === "N/A") return 0;
-  
   if (dateStr.includes("/")) {
     const parts = dateStr.split("/");
     if (parts.length === 3) {
       const d = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+      const m = parseInt(parts[1], 10) - 1;
       const y = parseInt(parts[2], 10);
       return new Date(y, m, d).getTime();
     }
   }
-  
   const t = new Date(dateStr).getTime();
   return isNaN(t) ? 0 : t;
 }
 
-// Extract timestamp from latest invoice
 function getLatestInvoiceTime(cust) {
   if (!cust.bills || cust.bills.length === 0) return 0;
   const lastBill = cust.bills[cust.bills.length - 1];
@@ -142,7 +139,7 @@ function getLatestInvoiceTime(cust) {
   return 0;
 }
 
-// 5. Search and Sort (Guaranteed Recent Top)
+// 5. Search and Sort
 function applySearchAndSort() {
   let result = [...allCustomers];
 
@@ -162,12 +159,7 @@ function applySearchAndSort() {
     result.sort((a, b) => {
       const dateA = parseDateToTimestamp(a.lastPurchase);
       const dateB = parseDateToTimestamp(b.lastPurchase);
-      
-      // 1. Primary: Compare Dates (e.g. 26/7/2026 > 25/7/2026)
-      if (dateB !== dateA) {
-        return dateB - dateA;
-      }
-      // 2. Secondary: Compare Invoice Time for Same Day
+      if (dateB !== dateA) return dateB - dateA;
       return getLatestInvoiceTime(b) - getLatestInvoiceTime(a);
     });
   } else if (sortValue === "name") {
@@ -181,7 +173,7 @@ function applySearchAndSort() {
   renderCustomersTable(result);
 }
 
-// 6. Render Table with Individual Delete Option
+// 6. Render Table
 function renderCustomersTable(customersList) {
   if (!customersTableBody) return;
   customersTableBody.innerHTML = "";
@@ -223,12 +215,11 @@ function renderCustomersTable(customersList) {
 if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
 if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-// 7. Individual Row Delete Handler
+// 7. Delete Handler
 window.deleteSingleCustomer = async function(mobile, name) {
   if (!confirm(`⚠️ Kya aap "${name}" ka record delete karna chahte hain?`)) return;
 
   try {
-    // 1. Delete from LocalStorage
     let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers = localCustomers.filter(c => {
       const mob = String(c.mobile || "N/A").trim();
@@ -241,7 +232,6 @@ window.deleteSingleCustomer = async function(mobile, name) {
     });
     localStorage.setItem('customers', JSON.stringify(localCustomers));
 
-    // 2. Delete Firestore Sales docs
     const salesRef = collection(db, "sales");
     let q = (mobile !== "N/A" && mobile !== "") 
       ? query(salesRef, where("mobile", "==", mobile))
@@ -252,7 +242,6 @@ window.deleteSingleCustomer = async function(mobile, name) {
     salesSnap.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id))));
     await Promise.all(deletePromises);
 
-    // 3. Refresh State
     allCustomers = allCustomers.filter(c => {
       if (mobile !== "N/A" && mobile !== "") {
         return String(c.mobile).trim() !== mobile;
@@ -282,7 +271,7 @@ if (logoutBtn) {
   });
 }
 
-// 8. View Bill Modal Engine
+// 8. Modal View Bill Logic
 window.viewCustomerBills = function(mobile) {
   const cust = allCustomers.find(c => String(c.mobile).trim() === String(mobile).trim());
   if (!cust) return;
