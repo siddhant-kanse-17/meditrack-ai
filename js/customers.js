@@ -113,17 +113,16 @@ function renderEmptyTable() {
 }
 
 /**
- * Helper to parse Indian Date format (DD/MM/YYYY) into JavaScript Timestamp for accurate sorting
+ * Helper to parse Indian Date format (DD/MM/YYYY) into Timestamp
  */
 function parseDateToTimestamp(dateStr) {
   if (!dateStr || dateStr === "N/A") return 0;
   
-  // If date contains slashes (e.g. "26/7/2026")
   if (dateStr.includes("/")) {
     const parts = dateStr.split("/");
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1; // Months are 0-indexed in JS
+      const month = parseInt(parts[1], 10) - 1;
       const year = parseInt(parts[2], 10);
       return new Date(year, month, day).getTime();
     }
@@ -133,7 +132,22 @@ function parseDateToTimestamp(dateStr) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-// 4. Search and Sort Filter Logic (Recent First Fix)
+/**
+ * Get latest invoice timestamp for sub-sorting same-day customers
+ */
+function getLatestInvoiceTime(cust) {
+  if (!cust.bills || cust.bills.length === 0) return 0;
+  const lastBill = cust.bills[cust.bills.length - 1];
+  
+  // Extract timestamp from Invoice Number (e.g., INV-1785058651800)
+  if (lastBill.invoiceNo && lastBill.invoiceNo.startsWith("INV-")) {
+    const invTime = parseInt(lastBill.invoiceNo.replace("INV-", ""), 10);
+    if (!isNaN(invTime)) return invTime;
+  }
+  return 0;
+}
+
+// 4. Search and Sort Filter Logic (Recent First & Same-Day Fix)
 function applySearchAndSort() {
   let result = [...allCustomers];
 
@@ -151,8 +165,18 @@ function applySearchAndSort() {
   const sortValue = sortSelect ? sortSelect.value : "recent";
 
   if (sortValue === "recent") {
-    // Newest/Recent Purchase at Top (Descending Order)
-    result.sort((a, b) => parseDateToTimestamp(b.lastPurchase) - parseDateToTimestamp(a.lastPurchase));
+    result.sort((a, b) => {
+      const dateA = parseDateToTimestamp(a.lastPurchase);
+      const dateB = parseDateToTimestamp(b.lastPurchase);
+
+      // 1. If Dates are different -> Latest Date at Top
+      if (dateB !== dateA) {
+        return dateB - dateA;
+      }
+
+      // 2. If Date is SAME -> Latest Invoice Timestamp (INV-...) at Top
+      return getLatestInvoiceTime(b) - getLatestInvoiceTime(a);
+    });
   } else if (sortValue === "name") {
     result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   } else if (sortValue === "purchaseHigh") {
