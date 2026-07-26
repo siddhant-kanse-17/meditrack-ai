@@ -10,22 +10,19 @@ const lowStockEl = document.getElementById("lowStockAlerts");
 const adminNameEl = document.getElementById("adminName") || document.querySelector("h1");
 const logoutBtn = document.getElementById("logoutBtn");
 
-// 1. Auth Guard & Initial Load
+// Auth Guard & Initial Load
 onAuthStateChanged(auth, (user) => {
     if (!user) {
         window.location.href = "index.html";
     } else {
-        // Admin Name Setup
         const savedName = localStorage.getItem("adminName") || "Admin";
         if (adminNameEl && adminNameEl.tagName === "H1") {
             adminNameEl.innerText = `Welcome ${savedName} 👋`;
         }
-
         loadDashboardMetrics();
     }
 });
 
-// Helper: Format Date string to DD/MM/YYYY
 function getTodayFormattedDate() {
     const d = new Date();
     const day = String(d.getDate()).padStart(2, '0');
@@ -35,14 +32,14 @@ function getTodayFormattedDate() {
 }
 
 async function loadDashboardMetrics() {
-    // A. Total Medicines & Low Stock Alerts
+    // 1. Total Medicines & Always-Active Low Stock Alerts
     try {
         let medicines = [];
         try {
             const medSnap = await getDocs(collection(db, "medicines"));
-            medSnap.forEach(doc => medicines.push(doc.data()));
+            medSnap.forEach(doc => medicines.push({ id: doc.id, ...doc.data() }));
         } catch(e) {
-            console.warn("Firestore medicines fetch failed, fallback to local:", e);
+            console.warn("Firestore medicines fetch error:", e);
         }
 
         if (medicines.length === 0) {
@@ -51,21 +48,26 @@ async function loadDashboardMetrics() {
 
         if (totalMedicinesEl) totalMedicinesEl.innerText = medicines.length;
 
-        const lowStockCount = medicines.filter(m => Number(m.stock || m.stockQty || 0) <= 10).length;
+        // Accurate Low Stock Count (checks stock, stockQty, qty <= 10)
+        const lowStockCount = medicines.filter(m => {
+            const q = Number(m.stock !== undefined ? m.stock : (m.stockQty !== undefined ? m.stockQty : (m.qty !== undefined ? m.qty : 0)));
+            return q <= 10;
+        }).length;
+
         if (lowStockEl) lowStockEl.innerText = lowStockCount;
 
     } catch(err) {
         console.error("Metrics Medicines Error:", err);
     }
 
-    // B. Today's Sales Calculation (Strict Today Date Matching)
+    // 2. Today's Sales Calculation (Strict Current Date Match)
     try {
         let sales = [];
         try {
             const salesSnap = await getDocs(collection(db, "sales"));
             salesSnap.forEach(doc => sales.push(doc.data()));
         } catch(e) {
-            console.warn("Firestore sales fetch failed, fallback to local:", e);
+            console.warn("Firestore sales fetch error:", e);
         }
 
         if (sales.length === 0) {
@@ -86,7 +88,6 @@ async function loadDashboardMetrics() {
                 saleDate = new Date(s.timestamp).toLocaleDateString("en-IN");
             }
 
-            // Match current date formats (en-IN or DD/MM/YYYY)
             if (saleDate === todayStr || saleDate === todayDateNative) {
                 todayTotalSum += parseFloat(s.grandTotal || s.total || 0);
             }
@@ -101,26 +102,30 @@ async function loadDashboardMetrics() {
         if (todaysSalesEl) todaysSalesEl.innerText = "₹0";
     }
 
-    // C. Unique Customers Count
+    // 3. Permanent Customers Count (LocalStorage + Firestore Merged)
     try {
-        let customers = [];
-        const localCust = JSON.parse(localStorage.getItem("customers")) || [];
-        if (localCust.length > 0) {
-            customers = localCust;
-        } else {
-            try {
-                const salesSnap = await getDocs(collection(db, "sales"));
-                const custSet = new Set();
-                salesSnap.forEach(doc => {
-                    const data = doc.data();
-                    const key = data.mobile || data.customerName || doc.id;
-                    custSet.add(key);
-                });
-                customers = Array.from(custSet);
-            } catch(e) {}
-        }
+        const customerSet = new Set();
 
-        if (totalCustomersEl) totalCustomersEl.innerText = customers.length;
+        // Check LocalStorage Customers
+        const localCust = JSON.parse(localStorage.getItem("customers")) || [];
+        localCust.forEach(c => {
+            const key = String(c.mobile || c.name || "").trim();
+            if (key) customerSet.add(key);
+        });
+
+        // Check Firestore Sales Customers
+        try {
+            const salesSnap = await getDocs(collection(db, "sales"));
+            salesSnap.forEach(doc => {
+                const data = doc.data();
+                const key = String(data.mobile || data.customerPhone || data.customerName || data.name || "").trim();
+                if (key && key !== "N/A") customerSet.add(key);
+            });
+        } catch(e) {}
+
+        if (totalCustomersEl) {
+            totalCustomersEl.innerText = customerSet.size > 0 ? customerSet.size : localCust.length;
+        }
 
     } catch(err) {
         console.error("Metrics Customers Error:", err);
