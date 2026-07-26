@@ -88,7 +88,7 @@ async function loadMedicines() {
 }
 loadMedicines();
 
-// --- BARCODE SCANNER LOGIC ---
+// --- BARCODE SCANNER LOGIC WITH WORKING 2X ZOOM ---
 if (startScanBtn) {
   startScanBtn.addEventListener("click", () => {
     if (scannerModal) scannerModal.style.display = "flex";
@@ -97,7 +97,7 @@ if (startScanBtn) {
       html5QrCode = new Html5Qrcode("reader");
     }
 
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
 
     html5QrCode.start(
       { facingMode: "environment" },
@@ -106,8 +106,10 @@ if (startScanBtn) {
         stopScanner();
         handleScannedBarcode(decodedText);
       },
-      (err) => {}
-    ).catch(err => {
+      () => {}
+    ).then(() => {
+      setupBillingZoom();
+    }).catch(err => {
       console.error("Camera access failed:", err);
       alert("Camera permission is required to scan barcodes.");
       stopScanner();
@@ -115,16 +117,60 @@ if (startScanBtn) {
   });
 }
 
+function setupBillingZoom() {
+  const z1 = document.getElementById("zoom1xBtn");
+  const z2 = document.getElementById("zoom2xBtn");
+  const readerBox = document.getElementById("reader");
+
+  if (!readerBox) return;
+
+  readerBox.style.transition = "transform 0.2s ease-in-out";
+  readerBox.style.transform = "scale(1)";
+
+  if (z1) {
+    z1.onclick = () => {
+      readerBox.style.transform = "scale(1)";
+      applyHardwareZoom(1);
+    };
+  }
+
+  if (z2) {
+    z2.onclick = () => {
+      readerBox.style.transform = "scale(1.5)";
+      applyHardwareZoom(2);
+    };
+  }
+}
+
+function applyHardwareZoom(zoomVal) {
+  try {
+    if (html5QrCode) {
+      const track = html5QrCode.getRunningTrack();
+      const capabilities = track.getCapabilities();
+      if (capabilities && capabilities.zoom) {
+        track.applyConstraints({ advanced: [{ zoom: zoomVal }] });
+      }
+    }
+  } catch (e) {
+    console.warn("Hardware zoom unsupported, CSS scale active.");
+  }
+}
+
 if (closeScanBtn) {
   closeScanBtn.addEventListener("click", stopScanner);
 }
 
 function stopScanner() {
+  const readerBox = document.getElementById("reader");
+  if (readerBox) {
+    readerBox.style.transform = "scale(1)";
+  }
+
   if (html5QrCode) {
     html5QrCode.stop().then(() => {
       html5QrCode.clear();
       if (scannerModal) scannerModal.style.display = "none";
-    }).catch(err => {
+    }).catch(() => {
       if (scannerModal) scannerModal.style.display = "none";
     });
   } else {
@@ -211,7 +257,6 @@ if (generateBillBtn) {
         medicines: billItems
       };
 
-      // 1. Direct LocalStorage Save
       let customers = JSON.parse(localStorage.getItem("customers")) || [];
       const existingIndex = customers.findIndex(c => (custPhone !== "N/A" && c.mobile === custPhone) || (custPhone === "N/A" && c.name === custName));
 
@@ -236,7 +281,6 @@ if (generateBillBtn) {
 
       localStorage.setItem("customers", JSON.stringify(customers));
 
-      // 2. Save To Firestore Async
       await addDoc(collection(db, "sales"), {
         invoiceNo: invoiceNo,
         customerName: custName,
