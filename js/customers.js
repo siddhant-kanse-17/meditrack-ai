@@ -10,7 +10,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 let allCustomers = [];
 
-// Force clear any old reset keys on page load
+// Clean lock flag on load
 localStorage.removeItem('customersReset');
 
 // 1. Auth Guard Check
@@ -22,12 +22,12 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 2. Fetch Sales and Group by Customer Mobile / Name
+// 2. Fetch Sales and Group by Customer
 async function loadCustomersData() {
   try {
     const customerMap = {};
 
-    // 2A. Read LocalStorage Saved Customers First
+    // 2A. Read LocalStorage
     const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers.forEach(localCust => {
       const mob = String(localCust.mobile || "N/A").trim();
@@ -43,7 +43,7 @@ async function loadCustomersData() {
       };
     });
 
-    // 2B. Read Firestore "sales" collection & Auto-Group
+    // 2B. Read Firestore "sales"
     try {
       const salesSnapshot = await getDocs(collection(db, "sales"));
       if (!salesSnapshot.empty) {
@@ -106,36 +106,43 @@ async function loadCustomersData() {
   }
 }
 
-// 3. Render Empty Table State
+// 3. Empty Table State
 function renderEmptyTable() {
   if (customersTableBody) {
     customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No customer records found.</td></tr>`;
   }
 }
 
-// 4. Date Parsing and Invoice Timestamp Helpers for Sorting
+// 4. Accurate Date Parser (Converts DD/MM/YYYY to Exact Timestamp)
 function parseDateToTimestamp(dateStr) {
   if (!dateStr || dateStr === "N/A") return 0;
+  
   if (dateStr.includes("/")) {
     const parts = dateStr.split("/");
     if (parts.length === 3) {
-      return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)).getTime();
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+      const y = parseInt(parts[2], 10);
+      return new Date(y, m, d).getTime();
     }
   }
-  return new Date(dateStr).getTime() || 0;
+  
+  const t = new Date(dateStr).getTime();
+  return isNaN(t) ? 0 : t;
 }
 
+// Extract timestamp from latest invoice
 function getLatestInvoiceTime(cust) {
   if (!cust.bills || cust.bills.length === 0) return 0;
   const lastBill = cust.bills[cust.bills.length - 1];
-  if (lastBill.invoiceNo && lastBill.invoiceNo.startsWith("INV-")) {
-    const invTime = parseInt(lastBill.invoiceNo.replace("INV-", ""), 10);
+  if (lastBill.invoiceNo && String(lastBill.invoiceNo).startsWith("INV-")) {
+    const invTime = parseInt(String(lastBill.invoiceNo).replace("INV-", ""), 10);
     if (!isNaN(invTime)) return invTime;
   }
   return 0;
 }
 
-// 5. Filter and Sort Logic (Recent First Fix)
+// 5. Search and Sort (Guaranteed Recent Top)
 function applySearchAndSort() {
   let result = [...allCustomers];
 
@@ -152,11 +159,15 @@ function applySearchAndSort() {
   const sortValue = sortSelect ? sortSelect.value : "recent";
 
   if (sortValue === "recent") {
-    // Recent Purchase / Latest Bill First
     result.sort((a, b) => {
       const dateA = parseDateToTimestamp(a.lastPurchase);
       const dateB = parseDateToTimestamp(b.lastPurchase);
-      if (dateB !== dateA) return dateB - dateA;
+      
+      // 1. Primary: Compare Dates (e.g. 26/7/2026 > 25/7/2026)
+      if (dateB !== dateA) {
+        return dateB - dateA;
+      }
+      // 2. Secondary: Compare Invoice Time for Same Day
       return getLatestInvoiceTime(b) - getLatestInvoiceTime(a);
     });
   } else if (sortValue === "name") {
@@ -170,7 +181,7 @@ function applySearchAndSort() {
   renderCustomersTable(result);
 }
 
-// 6. Render Table Rows with Direct Delete Button
+// 6. Render Table with Individual Delete Option
 function renderCustomersTable(customersList) {
   if (!customersTableBody) return;
   customersTableBody.innerHTML = "";
@@ -184,7 +195,6 @@ function renderCustomersTable(customersList) {
     const tr = document.createElement("tr");
     tr.style.borderBottom = "1px solid #ddd";
 
-    // Escape special characters for safer inline parameters
     const safeMobile = String(cust.mobile).replace(/'/g, "\\'");
     const safeName = String(cust.name).replace(/'/g, "\\'");
 
@@ -213,13 +223,12 @@ function renderCustomersTable(customersList) {
 if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
 if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-// 7. Single Customer Row Delete Handler (Deletes from LocalStorage + Firestore Sales)
+// 7. Individual Row Delete Handler
 window.deleteSingleCustomer = async function(mobile, name) {
-  const identifier = mobile !== "N/A" && mobile !== "" ? mobile : name;
-  if (!confirm(`⚠️ Kya aap "${name}" ka record aur bill history delete karna chahte hain?`)) return;
+  if (!confirm(`⚠️ Kya aap "${name}" ka record delete karna chahte hain?`)) return;
 
   try {
-    // 1. Remove from LocalStorage
+    // 1. Delete from LocalStorage
     let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers = localCustomers.filter(c => {
       const mob = String(c.mobile || "N/A").trim();
@@ -232,23 +241,18 @@ window.deleteSingleCustomer = async function(mobile, name) {
     });
     localStorage.setItem('customers', JSON.stringify(localCustomers));
 
-    // 2. Delete matching Sales docs from Firestore
+    // 2. Delete Firestore Sales docs
     const salesRef = collection(db, "sales");
-    let q;
-    if (mobile !== "N/A" && mobile !== "") {
-      q = query(salesRef, where("mobile", "==", mobile));
-    } else {
-      q = query(salesRef, where("customerName", "==", name));
-    }
+    let q = (mobile !== "N/A" && mobile !== "") 
+      ? query(salesRef, where("mobile", "==", mobile))
+      : query(salesRef, where("customerName", "==", name));
 
     const salesSnap = await getDocs(q);
     const deletePromises = [];
-    salesSnap.forEach((docSnap) => {
-      deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id)));
-    });
+    salesSnap.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id))));
     await Promise.all(deletePromises);
 
-    // 3. Update Memory State & Re-render
+    // 3. Refresh State
     allCustomers = allCustomers.filter(c => {
       if (mobile !== "N/A" && mobile !== "") {
         return String(c.mobile).trim() !== mobile;
@@ -258,11 +262,11 @@ window.deleteSingleCustomer = async function(mobile, name) {
     });
 
     applySearchAndSort();
-    alert(`"${name}" ka record successfully delete ho gaya hai!`);
+    alert(`"${name}" deleted!`);
 
   } catch (err) {
     console.error("Delete Error:", err);
-    alert("Delete operation failed: " + err.message);
+    alert("Delete failed: " + err.message);
   }
 };
 
@@ -278,7 +282,7 @@ if (logoutBtn) {
   });
 }
 
-// 8. Modal View Bill Logic
+// 8. View Bill Modal Engine
 window.viewCustomerBills = function(mobile) {
   const cust = allCustomers.find(c => String(c.mobile).trim() === String(mobile).trim());
   if (!cust) return;
