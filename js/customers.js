@@ -22,6 +22,9 @@ onAuthStateChanged(auth, (user) => {
 
 // 2. Load Customer Engine
 async function loadCustomersData() {
+  // Force clear the lock key whenever page loads or resets
+  localStorage.removeItem('customersReset');
+
   try {
     const customerMap = {};
 
@@ -186,16 +189,18 @@ function renderCustomersTable(customersList) {
 if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
 if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-// 7. Reset Button Handler
+// 7. Clean Reset Button Handler
 if (resetCustBtn) {
   resetCustBtn.addEventListener('click', async function () {
-    if (confirm("⚠️ Kya aap poora Customer data aur billing history permanently reset karna chahte hain?")) {
+    if (confirm("⚠️ Kya aap poora Customer data permanently reset karna chahte hain?")) {
       try {
         resetCustBtn.disabled = true;
         resetCustBtn.innerText = "Deleting...";
 
+        // Clear LocalStorage
         localStorage.clear();
 
+        // Delete Firestore sales Collection
         const salesSnapshot = await getDocs(collection(db, "sales"));
         const deletePromises = [];
         salesSnapshot.forEach((docSnap) => {
@@ -205,7 +210,7 @@ if (resetCustBtn) {
 
         allCustomers = [];
         renderEmptyTable();
-        alert("Customer data permanently delete ho gaya hai!");
+        alert("Customer data reset ho gaya hai!");
       } catch (e) {
         console.error("Reset error:", e);
         alert("Reset failed: " + e.message);
