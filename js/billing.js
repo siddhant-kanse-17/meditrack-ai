@@ -45,15 +45,28 @@ if (document.getElementById("billTime")) {
 }
 
 /**
- * Helper function to safely get Customer Name & Phone from HTML inputs
+ * Super-flexible Helper to catch Customer Details from any HTML input layout
  */
 function getCustomerDetails() {
-  const nameEl = document.getElementById("customerName") || document.getElementById("custName") || document.getElementById("customerNameInput");
-  const phoneEl = document.getElementById("customerPhone") || document.getElementById("custPhone") || document.getElementById("mobile") || document.getElementById("customerMobileInput");
+  const nameEl = document.getElementById("customerName") || 
+                 document.getElementById("custName") || 
+                 document.getElementById("customerNameInput") ||
+                 document.querySelector('input[placeholder*="Customer"]') ||
+                 document.querySelector('input[placeholder*="Name"]');
+
+  const phoneEl = document.getElementById("customerPhone") || 
+                  document.getElementById("custPhone") || 
+                  document.getElementById("mobile") || 
+                  document.getElementById("customerMobileInput") ||
+                  document.querySelector('input[placeholder*="Mobile"]') ||
+                  document.querySelector('input[placeholder*="Phone"]');
+
+  const rawName = nameEl ? nameEl.value.trim() : "";
+  const rawPhone = phoneEl ? phoneEl.value.trim() : "";
 
   return {
-    name: nameEl ? nameEl.value.trim() : "",
-    phone: phoneEl ? phoneEl.value.trim() : ""
+    name: rawName !== "" ? rawName : "Walk-in Customer",
+    phone: rawPhone !== "" ? rawPhone : "N/A"
   };
 }
 
@@ -61,14 +74,13 @@ function getCustomerDetails() {
  * Combined Customer Sync Engine with Full Bill History Integration
  */
 async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount, itemsList) {
-  const cleanName = (customerName || "").trim();
-  const cleanMobile = (mobileNumber || "").trim();
+  let cleanName = (customerName || "").trim();
+  let cleanMobile = (mobileNumber || "").trim();
   const amountToIncrement = parseFloat(billTotalAmount) || 0;
   const todayDate = formattedDate;
 
-  if (!cleanName || cleanName === "-" || !cleanMobile || cleanMobile === "N/A") {
-    return;
-  }
+  if (!cleanName || cleanName === "-") cleanName = "Walk-in Customer";
+  if (!cleanMobile || cleanMobile === "-") cleanMobile = "N/A";
 
   // Single Bill Object Structure for View Bill Modal
   const currentBillRecord = {
@@ -82,17 +94,19 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount,
   // 1. Sync LocalStorage
   try {
     let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
-    const existingIndex = localCustomers.findIndex(c => String(c.mobile).trim() === cleanMobile);
+    
+    // Check match by Mobile (or by Name if Mobile is N/A)
+    const existingIndex = localCustomers.findIndex(c => 
+      (cleanMobile !== "N/A" && String(c.mobile).trim() === cleanMobile) ||
+      (cleanMobile === "N/A" && String(c.name).toLowerCase() === cleanName.toLowerCase())
+    );
 
     if (existingIndex !== -1) {
       localCustomers[existingIndex].name = cleanName;
       localCustomers[existingIndex].totalBills = (parseInt(localCustomers[existingIndex].totalBills) || 1) + 1;
       localCustomers[existingIndex].totalPurchase = (parseFloat(localCustomers[existingIndex].totalPurchase) || 0) + amountToIncrement;
       localCustomers[existingIndex].lastPurchase = todayDate;
-      
-      if (!localCustomers[existingIndex].bills) {
-        localCustomers[existingIndex].bills = [];
-      }
+      if (!localCustomers[existingIndex].bills) localCustomers[existingIndex].bills = [];
       localCustomers[existingIndex].bills.push(currentBillRecord);
     } else {
       localCustomers.push({
@@ -105,7 +119,9 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount,
         bills: [currentBillRecord]
       });
     }
+    
     localStorage.setItem('customers', JSON.stringify(localCustomers));
+    localStorage.removeItem('customersReset'); // Remove reset lock on new billing
   } catch (e) {
     console.warn("LocalStorage customer update error:", e);
   }
@@ -113,7 +129,12 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount,
   // 2. Sync Firestore
   try {
     const customersRef = collection(db, "customers");
-    const q = query(customersRef, where("mobile", "==", cleanMobile));
+    
+    // If mobile is present query by mobile, else query by name
+    const q = cleanMobile !== "N/A" 
+      ? query(customersRef, where("mobile", "==", cleanMobile))
+      : query(customersRef, where("name", "==", cleanName));
+
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
@@ -122,6 +143,7 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount,
 
       await updateDoc(doc(db, "customers", customerDoc.id), {
         name: cleanName,
+        mobile: cleanMobile,
         totalBills: (parseInt(existingData.totalBills) || 1) + 1,
         totalPurchase: (parseFloat(existingData.totalPurchase) || 0) + amountToIncrement,
         lastPurchase: todayDate,
@@ -274,15 +296,6 @@ if (addBillBtn) {
   addBillBtn.addEventListener("click", async () => {
     const { name: customerName, phone: customerPhone } = getCustomerDetails();
 
-    if (customerName === "") {
-      alert("Please enter Customer Name first!");
-      return;
-    }
-    if (customerPhone === "") {
-      alert("Please enter Mobile Number first!");
-      return;
-    }
-
     if (document.getElementById("billCustomer")) document.getElementById("billCustomer").innerText = customerName;
     if (document.getElementById("billPhone")) document.getElementById("billPhone").innerText = customerPhone;
 
@@ -368,11 +381,11 @@ if (generateBillBtn) {
       // Save sales entry
       await addDoc(collection(db, "sales"), {
         invoiceNo: invoiceNo,
-        customerName: customerName || "Walk-in Customer",
-        customer: customerName || "Walk-in Customer",
-        name: customerName || "Walk-in Customer",
-        mobile: customerPhone || "N/A",
-        customerPhone: customerPhone || "N/A",
+        customerName: customerName,
+        customer: customerName,
+        name: customerName,
+        mobile: customerPhone,
+        customerPhone: customerPhone,
         medicines: billItems,
         items: billItems,
         grandTotal: totalAmount,

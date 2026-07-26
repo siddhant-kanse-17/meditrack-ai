@@ -25,6 +25,11 @@
                 left: 0;
                 width: 100%;
             }
+
+            /* Hide Action Buttons inside Print Output */
+            button, .no-print {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -36,16 +41,19 @@
 
     <h3>Customer Details</h3>
 
+    <!-- Customer Details Inputs (Matching js/billing.js) -->
     <input
         type="text"
         id="customerName"
-        placeholder="Customer Name">
+        placeholder="Customer Name"
+        required>
 
     <input
         type="tel"
         id="customerPhone"
         placeholder="Mobile Number"
-        maxlength="10">
+        maxlength="10"
+        required>
 
     <br><br>
 
@@ -59,7 +67,7 @@
 
     <!-- Barcode Scan Button -->
     <button id="startScanBtn" style="background-color: #28a745; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
-      📷 Scan Barcode
+        📷 Scan Barcode
     </button>
 
     <input
@@ -68,7 +76,7 @@
         placeholder="Quantity"
         min="1">
 
-    <button id="addBillItem">
+    <button id="addBillItem" style="padding: 10px 16px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer;">
         Add To Bill
     </button>
 
@@ -112,10 +120,10 @@
         <p><strong>Mobile :</strong>
         <span id="billPhone">-</span></p>
 
-        <table border="1" cellpadding="10" cellspacing="0">
+        <table border="1" cellpadding="10" cellspacing="0" style="width:100%; border-collapse:collapse; text-align:left;">
 
             <thead>
-                <tr>
+                <tr style="background:#f4f4f4;">
                     <th>Medicine</th>
                     <th>Price</th>
                     <th>Qty</th>
@@ -130,7 +138,7 @@
         <br>
 
         <h2 id="grandTotal">
-            Grand Total: ₹0
+            Grand Total: ₹0.00
         </h2>
 
         <hr>
@@ -145,13 +153,15 @@
 
     </div>
 
-    <button id="generateBill">
-        Generate Bill
-    </button>
+    <div style="margin-top: 20px;">
+        <button id="generateBill" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">
+            Generate Bill
+        </button>
 
-    <button id="printBill">
-        Print Bill
-    </button>
+        <button id="printBill" style="padding: 10px 20px; background-color: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-left: 10px;">
+            Print Bill
+        </button>
+    </div>
 
     <script type="module" src="js/billing.js"></script>
 
