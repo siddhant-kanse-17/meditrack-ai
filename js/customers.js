@@ -90,17 +90,6 @@ async function loadCustomersData() {
 
     allCustomers = Object.values(customerMap);
 
-    // If reset button was clicked and NO new customer exists
-    if (localStorage.getItem('customersReset') === 'true' && allCustomers.length === 0) {
-      renderEmptyTable();
-      return;
-    }
-
-    // If customers exist, clear the reset lock automatically
-    if (allCustomers.length > 0) {
-      localStorage.removeItem('customersReset');
-    }
-
     if (allCustomers.length === 0) {
       renderEmptyTable();
       return;
@@ -201,7 +190,7 @@ if (resetCustBtn) {
       localStorage.removeItem('customers');
       localStorage.removeItem('bills');
       localStorage.removeItem('sales');
-      localStorage.setItem('customersReset', 'true');
+      localStorage.removeItem('customersReset');
 
       allCustomers = [];
       renderEmptyTable();

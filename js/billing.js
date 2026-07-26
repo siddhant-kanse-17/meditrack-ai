@@ -233,7 +233,7 @@ if (generateBillBtn) {
       generateBillBtn.disabled = true;
       generateBillBtn.innerText = "Saving Bill...";
 
-      // 1. Save to LocalStorage immediately
+      // 1. Save to LocalStorage
       saveCustomerToLocal(customerName, customerPhone, totalAmount, billItems);
 
       // 2. Save Sales Record in Firestore
@@ -254,7 +254,11 @@ if (generateBillBtn) {
       });
 
       alert("Bill Generated & Saved Successfully! 🎉");
-      window.location.href = "customers.html";
+
+      // Small delay guarantees LocalStorage writes properly before DOM unloads
+      setTimeout(() => {
+        window.location.href = "customers.html";
+      }, 300);
 
     } catch (err) {
       alert("Error saving bill: " + err.message);
