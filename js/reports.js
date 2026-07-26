@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 const expiredCountEl = document.getElementById("expiredCount");
 const expiringSoonCountEl = document.getElementById("expiringSoonCount");
 const totalBatchesEl = document.getElementById("totalBatches");
@@ -22,9 +23,6 @@ if (todayReportDateEl) {
     todayReportDateEl.innerText = today.toLocaleDateString("en-IN");
 }
 
-/**
- * Format YYYY-MM into MM/YYYY for presentation
- */
 function formatMonthYear(val) {
     if (!val) return 'N/A';
     const parts = val.split("-");
@@ -84,10 +82,10 @@ async function loadExpiryReports() {
 
             expiryReportTable.innerHTML += `
                 <tr>
-                    <td><b>${med.name || "N/A"}</b></td>
-                    <td>${stockDisplay}</td>
-                    <td>${formatMonthYear(med.expiryDate)}</td>
-                    <td>${statusBadge}</td>
+                    <td style="padding:10px;"><b>${med.name || "N/A"}</b></td>
+                    <td style="padding:10px;">${stockDisplay}</td>
+                    <td style="padding:10px;">${formatMonthYear(med.expiryDate)}</td>
+                    <td style="padding:10px;">${statusBadge}</td>
                 </tr>
             `;
         });
@@ -105,7 +103,7 @@ async function loadExpiryReports() {
 }
 
 /**
- * Date-Wise Sales Report Handler (Firestore + LocalStorage aggregation)
+ * Date-Wise Sales Report Handler
  */
 function initDailySalesReport() {
     const cardBtn = document.getElementById('dailySalesBtnCard');
@@ -115,7 +113,6 @@ function initDailySalesReport() {
 
     if (!cardBtn || !modal) return;
 
-    // Open Modal and calculate sales by date
     cardBtn.addEventListener('click', async function () {
         if (modalBody) {
             modalBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:15px;">Loading sales...</td></tr>`;
@@ -124,7 +121,6 @@ function initDailySalesReport() {
 
         let salesData = [];
 
-        // Try fetching from Firestore first
         try {
             const salesQuery = query(collection(db, "sales"), orderBy("timestamp", "desc"));
             const querySnapshot = await getDocs(salesQuery);
@@ -135,7 +131,6 @@ function initDailySalesReport() {
             console.warn("Firestore fetch failed for reports, checking local storage:", e);
         }
 
-        // Fallback to LocalStorage if Firestore returned nothing
         if (salesData.length === 0) {
             salesData = JSON.parse(localStorage.getItem('sales')) || JSON.parse(localStorage.getItem('bills')) || [];
         }
@@ -147,13 +142,11 @@ function initDailySalesReport() {
             return;
         }
 
-        // Group total amount and orders count by date
         const salesByDate = {};
 
         salesData.forEach(sale => {
             let dateKey = sale.date;
 
-            // Handle timestamp formats
             if (!dateKey && sale.timestamp?.seconds) {
                 dateKey = new Date(sale.timestamp.seconds * 1000).toLocaleDateString("en-IN");
             } else if (!dateKey && sale.timestamp) {
@@ -174,7 +167,6 @@ function initDailySalesReport() {
             salesByDate[dateKey].totalOrders += 1;
         });
 
-        // Render aggregated results table
         if (modalBody) {
             modalBody.innerHTML = Object.keys(salesByDate).map(date => {
                 const info = salesByDate[date];
@@ -189,64 +181,9 @@ function initDailySalesReport() {
         }
     });
 
-    // Close modal handler
     if (closeBtn) {
         closeBtn.addEventListener('click', function () {
             modal.style.display = 'none';
         });
     }
 }
-// Function for Date-Wise Sales Popup
-function initDailySalesModal() {
-  const salesBtn = document.getElementById('dailySalesBtnCard');
-  const modal = document.getElementById('salesReportModal');
-  const closeBtn = document.getElementById('closeReportModalBtn');
-  const modalBody = document.getElementById('dailySalesModalBody');
-
-  if (!salesBtn || !modal) return;
-
-  salesBtn.addEventListener('click', function () {
-    const salesData = JSON.parse(localStorage.getItem('sales')) || JSON.parse(localStorage.getItem('bills')) || [];
-
-    if (salesData.length === 0) {
-      modalBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 15px; color: #888;">No sales record found.</td></tr>`;
-      modal.style.display = 'flex';
-      return;
-    }
-
-    const salesByDate = {};
-
-    salesData.forEach(s => {
-      let dateKey = s.date || (s.timestamp ? new Date(s.timestamp).toLocaleDateString() : 'Unknown');
-      let amount = parseFloat(s.grandTotal || s.total || 0);
-
-      if (!salesByDate[dateKey]) {
-        salesByDate[dateKey] = { totalSales: 0, orderCount: 0 };
-      }
-
-      salesByDate[dateKey].totalSales += amount;
-      salesByDate[dateKey].orderCount += 1;
-    });
-
-    modalBody.innerHTML = Object.keys(salesByDate).map(date => {
-      const data = salesByDate[date];
-      return `
-        <tr style="border-bottom: 1px solid #eee;">
-          <td style="padding: 10px; font-weight: bold;">${date}</td>
-          <td style="padding: 10px;">${data.orderCount} Bills</td>
-          <td style="padding: 10px; color: #28a745; font-weight: bold;">₹${data.totalSales.toFixed(2)}</td>
-        </tr>
-      `;
-    }).join("");
-
-    modal.style.display = 'flex';
-  });
-
-  if (closeBtn) {
-    closeBtn.addEventListener('click', function () {
-      modal.style.display = 'none';
-    });
-  }
-}
-
-document.addEventListener('DOMContentLoaded', initDailySalesModal);
