@@ -8,7 +8,7 @@ import {
 const loginForm = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
-const loginBtn = document.getElementById("loginBtn") || document.querySelector("button[type='submit']");
+const loginBtn = document.getElementById("loginBtn");
 const errorMsgEl = document.getElementById("error");
 
 async function handleLogin(e) {
@@ -38,16 +38,12 @@ async function handleLogin(e) {
 
     if (errorMsgEl) errorMsgEl.innerText = "";
 
-    // Set persistence for mobile browsers
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-    } catch(pErr) {
-      console.warn("Persistence set warning:", pErr);
-    }
-
-    // Firebase Sign In
+    // Direct Firebase Sign In First (Fastest for Mobile)
     await signInWithEmailAndPassword(auth, email, password);
     
+    // Set Persistence asynchronously
+    setPersistence(auth, browserLocalPersistence).catch(() => {});
+
     // Save Admin name
     const nameFromEmail = email.split("@")[0];
     const capitalized = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
@@ -80,15 +76,6 @@ async function handleLogin(e) {
   }
 }
 
-// Bind both Submit and Click Events for maximum mobile browser support
 if (loginForm) {
   loginForm.addEventListener("submit", handleLogin);
-}
-
-if (loginBtn) {
-  loginBtn.addEventListener("click", (e) => {
-    if (loginForm && e.target.type !== "submit") {
-      handleLogin(e);
-    }
-  });
 }
