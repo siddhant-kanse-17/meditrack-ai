@@ -29,21 +29,6 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// Live Customer Info Mirroring in Bill Preview
-if (nameEl) {
-  nameEl.addEventListener("input", () => {
-    const custDisp = document.getElementById("billCustomer");
-    if (custDisp) custDisp.innerText = nameEl.value.trim() || "-";
-  });
-}
-
-if (phoneEl) {
-  phoneEl.addEventListener("input", () => {
-    const phoneDisp = document.getElementById("billPhone");
-    if (phoneDisp) phoneDisp.innerText = phoneEl.value.trim() || "-";
-  });
-}
-
 // Setup Invoice Info
 const invoiceNo = "INV-" + Date.now();
 if (document.getElementById("invoiceNo")) document.getElementById("invoiceNo").innerText = invoiceNo;
@@ -88,7 +73,7 @@ async function loadMedicines() {
 }
 loadMedicines();
 
-// --- BARCODE SCANNER LOGIC WITH WORKING 2X ZOOM ---
+// --- DASHBOARD STYLE SCANNER WITH WORKING ZOOM ---
 if (startScanBtn) {
   startScanBtn.addEventListener("click", () => {
     if (scannerModal) scannerModal.style.display = "flex";
@@ -97,7 +82,7 @@ if (startScanBtn) {
       html5QrCode = new Html5Qrcode("reader");
     }
 
-    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
     html5QrCode.start(
       { facingMode: "environment" },
@@ -108,35 +93,30 @@ if (startScanBtn) {
       },
       () => {}
     ).then(() => {
-      setupBillingZoom();
+      setupDashboardStyleZoom();
     }).catch(err => {
       console.error("Camera access failed:", err);
-      alert("Camera permission is required to scan barcodes.");
+      alert("Camera permission is required!");
       stopScanner();
     });
   });
 }
 
-function setupBillingZoom() {
+function setupDashboardStyleZoom() {
   const z1 = document.getElementById("zoom1xBtn");
   const z2 = document.getElementById("zoom2xBtn");
-  const readerBox = document.getElementById("reader");
-
-  if (!readerBox) return;
-
-  readerBox.style.transition = "transform 0.2s ease-in-out";
-  readerBox.style.transform = "scale(1)";
+  const videoEl = document.querySelector("#reader video");
 
   if (z1) {
     z1.onclick = () => {
-      readerBox.style.transform = "scale(1)";
+      if (videoEl) videoEl.style.transform = "scale(1)";
       applyHardwareZoom(1);
     };
   }
 
   if (z2) {
     z2.onclick = () => {
-      readerBox.style.transform = "scale(1.5)";
+      if (videoEl) videoEl.style.transform = "scale(1.5)";
       applyHardwareZoom(2);
     };
   }
@@ -152,7 +132,7 @@ function applyHardwareZoom(zoomVal) {
       }
     }
   } catch (e) {
-    console.warn("Hardware zoom unsupported, CSS scale active.");
+    console.warn("Hardware zoom unsupported");
   }
 }
 
@@ -161,10 +141,8 @@ if (closeScanBtn) {
 }
 
 function stopScanner() {
-  const readerBox = document.getElementById("reader");
-  if (readerBox) {
-    readerBox.style.transform = "scale(1)";
-  }
+  const videoEl = document.querySelector("#reader video");
+  if (videoEl) videoEl.style.transform = "scale(1)";
 
   if (html5QrCode) {
     html5QrCode.stop().then(() => {
@@ -179,15 +157,15 @@ function stopScanner() {
 }
 
 function handleScannedBarcode(scannedText) {
-  const code = String(scannedText).trim();
+  const code = String(scannedText).trim().toLowerCase();
   let foundIndex = -1;
 
   for (let i = 0; i < medicineSelect.options.length; i++) {
     const opt = medicineSelect.options[i];
-    const barcodeAttr = opt.getAttribute("data-barcode") || "";
-    const nameAttr = opt.getAttribute("data-name") || "";
+    const barcodeAttr = String(opt.getAttribute("data-barcode") || "").trim().toLowerCase();
+    const nameAttr = String(opt.getAttribute("data-name") || "").trim().toLowerCase();
 
-    if (barcodeAttr.trim() === code || nameAttr.toLowerCase() === code.toLowerCase()) {
+    if (barcodeAttr === code || nameAttr === code) {
       foundIndex = i;
       break;
     }
@@ -199,7 +177,7 @@ function handleScannedBarcode(scannedText) {
     if (qtyInput) qtyInput.value = 1;
     alert(`✅ Scanned & Selected: ${medicineSelect.options[foundIndex].getAttribute("data-name")}`);
   } else {
-    alert(`⚠️ Barcode "${code}" not matched with any medicine.`);
+    alert(`⚠️ Barcode "${scannedText}" not found in list.`);
   }
 }
 
