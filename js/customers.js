@@ -1,8 +1,7 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 
-// DOM Elements
 const customersTableBody = document.getElementById("customersTableBody") || document.querySelector("tbody");
 const searchCustomerInput = document.getElementById("searchCustomerInput") || document.getElementById("searchCustomer");
 const sortSelect = document.getElementById("sortCustomersSelect");
@@ -11,7 +10,6 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 let allCustomers = [];
 
-// 1. Auth Guard Check
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = "index.html";
@@ -20,12 +18,11 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 2. Core Load Engine (LocalStorage + Firestore Merge)
 async function loadCustomersData() {
   try {
     const customerMap = {};
 
-    // 2A. Read LocalStorage Saved Customers First
+    // 1. Read LocalStorage Saved Customers
     const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers.forEach(localCust => {
       const mob = String(localCust.mobile || "N/A").trim();
@@ -41,7 +38,7 @@ async function loadCustomersData() {
       };
     });
 
-    // 2B. Read Firestore "sales" collection & Auto-Group
+    // 2. Read Firestore "sales" collection
     try {
       const salesSnapshot = await getDocs(collection(db, "sales"));
       if (!salesSnapshot.empty) {
@@ -73,7 +70,6 @@ async function loadCustomersData() {
               bills: [billRecord]
             };
           } else {
-            // Check if this invoice is already merged from LocalStorage
             const exists = customerMap[mapKey].bills.some(b => b.invoiceNo === billRecord.invoiceNo);
             if (!exists) {
               customerMap[mapKey].totalBills += 1;
@@ -105,41 +101,26 @@ async function loadCustomersData() {
   }
 }
 
-// 3. Render Empty Table State
 function renderEmptyTable() {
   if (customersTableBody) {
     customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No customer records found.</td></tr>`;
   }
 }
 
-/**
- * Helper to parse Indian Date format (DD/MM/YYYY) into Timestamp
- */
 function parseDateToTimestamp(dateStr) {
   if (!dateStr || dateStr === "N/A") return 0;
-  
   if (dateStr.includes("/")) {
     const parts = dateStr.split("/");
     if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const year = parseInt(parts[2], 10);
-      return new Date(year, month, day).getTime();
+      return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)).getTime();
     }
   }
-  
-  const parsed = new Date(dateStr).getTime();
-  return isNaN(parsed) ? 0 : parsed;
+  return new Date(dateStr).getTime() || 0;
 }
 
-/**
- * Get latest invoice timestamp for sub-sorting same-day customers
- */
 function getLatestInvoiceTime(cust) {
   if (!cust.bills || cust.bills.length === 0) return 0;
   const lastBill = cust.bills[cust.bills.length - 1];
-  
-  // Extract timestamp from Invoice Number (e.g., INV-1785058651800)
   if (lastBill.invoiceNo && lastBill.invoiceNo.startsWith("INV-")) {
     const invTime = parseInt(lastBill.invoiceNo.replace("INV-", ""), 10);
     if (!isNaN(invTime)) return invTime;
@@ -147,11 +128,9 @@ function getLatestInvoiceTime(cust) {
   return 0;
 }
 
-// 4. Search and Sort Filter Logic (Recent First & Same-Day Fix)
 function applySearchAndSort() {
   let result = [...allCustomers];
 
-  // Search Filter
   if (searchCustomerInput) {
     const term = searchCustomerInput.value.toLowerCase().trim();
     if (term !== "") {
@@ -165,16 +144,11 @@ function applySearchAndSort() {
   const sortValue = sortSelect ? sortSelect.value : "recent";
 
   if (sortValue === "recent") {
+    // Sorting: Newest/Recent at the top!
     result.sort((a, b) => {
       const dateA = parseDateToTimestamp(a.lastPurchase);
       const dateB = parseDateToTimestamp(b.lastPurchase);
-
-      // 1. If Dates are different -> Latest Date at Top
-      if (dateB !== dateA) {
-        return dateB - dateA;
-      }
-
-      // 2. If Date is SAME -> Latest Invoice Timestamp (INV-...) at Top
+      if (dateB !== dateA) return dateB - dateA;
       return getLatestInvoiceTime(b) - getLatestInvoiceTime(a);
     });
   } else if (sortValue === "name") {
@@ -188,7 +162,6 @@ function applySearchAndSort() {
   renderCustomersTable(result);
 }
 
-// 5. Render DOM Rows
 function renderCustomersTable(customersList) {
   if (!customersTableBody) return;
   customersTableBody.innerHTML = "";
@@ -210,43 +183,53 @@ function renderCustomersTable(customersList) {
       <td>${cust.lastPurchase}</td>
       <td>
         <button onclick="viewCustomerBills('${cust.mobile}')" 
-                style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:14px;" 
-                title="View Bills">
+                style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:14px;">
           👁️ View Bill
         </button>
       </td>
     `;
-
     customersTableBody.appendChild(tr);
   });
 }
 
-// 6. Dynamic Event Listeners
-if (searchCustomerInput) {
-  searchCustomerInput.addEventListener("input", applySearchAndSort);
-}
+if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
+if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-if (sortSelect) {
-  sortSelect.addEventListener("change", applySearchAndSort);
-}
-
-// Reset Customers Handler
+// Complete Reset Button Handler (Deletes Local Storage & Clears Firestore Sales Docs)
 if (resetCustBtn) {
-  resetCustBtn.addEventListener('click', function () {
-    if (confirm("⚠️ Are you sure you want to delete all customer records and local bill history?")) {
-      localStorage.removeItem('customers');
-      localStorage.removeItem('bills');
-      localStorage.removeItem('sales');
-      localStorage.removeItem('customersReset');
+  resetCustBtn.addEventListener('click', async function () {
+    if (confirm("⚠️ Kya aap poora Customer data aur billing history permanently reset karna chahte hain?")) {
+      try {
+        resetCustBtn.disabled = true;
+        resetCustBtn.innerText = "Deleting...";
 
-      allCustomers = [];
-      renderEmptyTable();
-      alert("Customer records reset successfully!");
+        // 1. Clear LocalStorage
+        localStorage.removeItem('customers');
+        localStorage.removeItem('bills');
+        localStorage.removeItem('sales');
+
+        // 2. Clear Firestore sales Collection
+        const salesSnapshot = await getDocs(collection(db, "sales"));
+        const deletePromises = [];
+        salesSnapshot.forEach((docSnap) => {
+          deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id)));
+        });
+        await Promise.all(deletePromises);
+
+        allCustomers = [];
+        renderEmptyTable();
+        alert("Customer data permanently delete ho gaya hai!");
+      } catch (e) {
+        console.error("Reset error:", e);
+        alert("Reset failed: " + e.message);
+      } finally {
+        resetCustBtn.disabled = false;
+        resetCustBtn.innerText = "🔄 Reset Customers";
+      }
     }
   });
 }
 
-// Logout Handler
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async (e) => {
     e.preventDefault();
@@ -259,47 +242,39 @@ if (logoutBtn) {
   });
 }
 
-// 7. View Bill Modal Engine
+// Modal View Bill Logic
 window.viewCustomerBills = function(mobile) {
   const cust = allCustomers.find(c => String(c.mobile).trim() === String(mobile).trim());
   if (!cust) return;
 
   let sortedBills = [...(cust.bills || [])].reverse();
-
   let billsListHtml = "";
+
   if (sortedBills.length === 0) {
-    billsListHtml = `<p style="text-align:center; padding:15px; color:#666;">No item details available for this customer.</p>`;
+    billsListHtml = `<p style="text-align:center; padding:15px; color:#666;">No item details available.</p>`;
   } else {
     billsListHtml = sortedBills.map((b, index) => {
-      let itemsRows = (b.medicines || []).map(m => {
-        const medName = m.medicine || m.name || 'Medicine';
-        const price = Number(m.price || 0);
-        const qty = Number(m.quantity || m.qty || 1);
-        const total = Number(m.total || price * qty);
-        return `
-          <tr>
-            <td style="border:1px solid #ddd; padding:6px;">${medName}</td>
-            <td style="border:1px solid #ddd; padding:6px; text-align:center;">₹${price.toFixed(2)}</td>
-            <td style="border:1px solid #ddd; padding:6px; text-align:center;">${qty}</td>
-            <td style="border:1px solid #ddd; padding:6px; text-align:right;">₹${total.toFixed(2)}</td>
-          </tr>
-        `;
-      }).join("");
+      let itemsRows = (b.medicines || []).map(m => `
+        <tr>
+          <td style="border:1px solid #ddd; padding:6px;">${m.medicine || m.name || 'Medicine'}</td>
+          <td style="border:1px solid #ddd; padding:6px; text-align:center;">₹${Number(m.price || 0).toFixed(2)}</td>
+          <td style="border:1px solid #ddd; padding:6px; text-align:center;">${Number(m.quantity || m.qty || 1)}</td>
+          <td style="border:1px solid #ddd; padding:6px; text-align:right;">₹${Number(m.total || 0).toFixed(2)}</td>
+        </tr>
+      `).join("");
 
       return `
-        <div class="printable-bill" id="bill-print-${index}" style="background:#fff; border:1px solid #ccc; border-radius:6px; padding:15px; margin-bottom:20px; font-family:sans-serif;">
+        <div class="printable-bill" id="bill-print-${index}" style="background:#fff; border:1px solid #ccc; border-radius:6px; padding:15px; margin-bottom:20px;">
           <div style="text-align:center; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:10px;">
             <h2 style="margin:0; color:#007bff;">MediTrack AI</h2>
             <p style="margin:2px 0; font-size:12px; color:#666;">Medical Store Management System</p>
           </div>
-          
           <div style="font-size:13px; margin-bottom:10px;">
             <p style="margin:2px 0;"><strong>Invoice No:</strong> ${b.invoiceNo}</p>
             <p style="margin:2px 0;"><strong>Date & Time:</strong> ${b.date} ${b.time}</p>
             <p style="margin:2px 0;"><strong>Customer:</strong> ${cust.name}</p>
             <p style="margin:2px 0;"><strong>Mobile:</strong> ${cust.mobile}</p>
           </div>
-
           <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:10px;">
             <thead>
               <tr style="background:#f8f9fa;">
@@ -309,18 +284,14 @@ window.viewCustomerBills = function(mobile) {
                 <th style="border:1px solid #ddd; padding:6px; text-align:right;">Total</th>
               </tr>
             </thead>
-            <tbody>
-              ${itemsRows || '<tr><td colspan="4" style="text-align:center;">No items recorded</td></tr>'}
-            </tbody>
+            <tbody>${itemsRows}</tbody>
           </table>
-
           <div style="text-align:right; font-size:15px; font-weight:bold; margin-bottom:12px;">
             Grand Total: ₹${Number(b.grandTotal || 0).toFixed(2)}
           </div>
-
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:11px; color:#888;">Thank You For Visiting! Get Well Soon 😊</span>
-            <button onclick="printSingleBill('bill-print-${index}')" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:13px;">
+            <button onclick="printSingleBill('bill-print-${index}')" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">
               🖨️ Print Bill
             </button>
           </div>
@@ -330,10 +301,9 @@ window.viewCustomerBills = function(mobile) {
   }
 
   closeCustomerModal();
-
   const modalHtml = `
     <div id="customerBillModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999;">
-      <div style="background:#f4f6f9; padding:20px; border-radius:8px; width:520px; max-width:90%; color:#333; box-shadow:0 4px 15px rgba(0,0,0,0.2); max-height:85vh; overflow-y:auto;">
+      <div style="background:#f4f6f9; padding:20px; border-radius:8px; width:520px; max-width:90%; color:#333; max-height:85vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #007bff; padding-bottom:8px;">
           <h3 style="margin:0;">📜 Full Bills - ${cust.name}</h3>
           <button onclick="closeCustomerModal()" style="padding:5px 10px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">✖ Close</button>
@@ -342,29 +312,17 @@ window.viewCustomerBills = function(mobile) {
       </div>
     </div>
   `;
-
   document.body.insertAdjacentHTML("beforeend", modalHtml);
 };
 
 window.printSingleBill = function(billDivId) {
   const printElement = document.getElementById(billDivId);
   if (!printElement) return;
-
-  const printContent = printElement.outerHTML;
   const printWindow = window.open("", "_blank");
   printWindow.document.write(`
     <html>
-      <head>
-        <title>Print Invoice</title>
-        <style>
-          body { font-family: sans-serif; padding: 20px; }
-          button { display: none !important; }
-          table { width: 100%; border-collapse: collapse; }
-        </style>
-      </head>
-      <body>
-        ${printContent}
-      </body>
+      <head><title>Print Invoice</title></head>
+      <body>${printElement.outerHTML}</body>
     </html>
   `);
   printWindow.document.close();
