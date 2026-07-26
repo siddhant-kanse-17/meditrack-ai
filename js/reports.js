@@ -2,18 +2,18 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// DOM Elements with multi-ID selector fallback
 const expiredCountEl = document.getElementById("expiredCount");
-const expiringSoonCountEl = document.getElementById("expiringSoonCount") || document.getElementById("expiringCount");
-const totalBatchesEl = document.getElementById("totalBatches") || document.getElementById("totalBatchesCount");
+const expiringSoonCountEl = document.getElementById("expiringSoonCount");
+const totalBatchesEl = document.getElementById("totalBatches");
+const todayReportDateEl = document.getElementById("todayReportDate");
 
-const expiryReportTable = document.getElementById("expiryReportTable") || 
-                          document.getElementById("expiryTableBody") || 
-                          document.getElementById("reportsTableBody") || 
-                          document.getElementById("expiryReportList") ||
-                          document.querySelector("tbody");
-
-const todayReportDateEl = document.getElementById("todayReportDate") || document.getElementById("currentDate");
+// Safe Table Selector
+function getTableBody() {
+    return document.getElementById("expiryReportTable") || 
+           document.getElementById("reportsTableBody") || 
+           document.getElementById("expiryTableBody") || 
+           document.querySelector("tbody");
+}
 
 // Auth Guard & Core Loader
 onAuthStateChanged(auth, (user) => {
@@ -40,34 +40,33 @@ function formatMonthYear(val) {
 }
 
 /**
- * Load Inventory & Expiry Reports with LocalStorage fallback
+ * Load Inventory & Expiry Reports
  */
 async function loadExpiryReports() {
+    const tableBody = getTableBody();
     try {
         let medicinesList = [];
 
         // 1. Fetch from Firestore
         try {
             const querySnapshot = await getDocs(collection(db, "medicines"));
-            if (querySnapshot && !querySnapshot.empty) {
-                querySnapshot.forEach((docSnap) => {
-                    medicinesList.push({ id: docSnap.id, ...docSnap.data() });
-                });
-            }
-        } catch (e) {
-            console.warn("Firestore medicines fetch failed, checking local storage:", e);
+            querySnapshot.forEach(docSnap => {
+                medicinesList.push({ id: docSnap.id, ...docSnap.data() });
+            });
+        } catch(e) {
+            console.warn("Firestore fetch error, checking local storage:", e);
         }
 
-        // 2. Fallback to LocalStorage if Firestore is empty or failed
+        // 2. Fallback LocalStorage
         if (medicinesList.length === 0) {
             medicinesList = JSON.parse(localStorage.getItem("medicines")) || [];
         }
 
-        if (!expiryReportTable) return;
-        expiryReportTable.innerHTML = "";
+        if (!tableBody) return;
+        tableBody.innerHTML = "";
 
         if (medicinesList.length === 0) {
-            expiryReportTable.innerHTML = `<tr><td colspan="4" style="text-align: center; padding:20px;">No medicine records found.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">No medicine records found.</td></tr>`;
             return;
         }
 
@@ -76,12 +75,11 @@ async function loadExpiryReports() {
         let totalItems = medicinesList.length;
 
         const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth() + 1; // 1 to 12
+        const currentMonth = today.getMonth() + 1;
 
         medicinesList.forEach((med) => {
             let statusBadge = `<span style="background: #28a745; color: white; padding: 4px 8px; border-radius: 4px;">Safe</span>`;
 
-            // Expiry Date logic
             if (med.expiryDate && med.expiryDate.includes("-")) {
                 const parts = med.expiryDate.split("-");
                 const expYear = parseInt(parts[0], 10);
@@ -96,19 +94,18 @@ async function loadExpiryReports() {
                 }
             }
 
-            // Low Stock Check
             const stockQty = Number(med.stock || 0);
             let stockDisplay = `${stockQty} pcs`;
             if (stockQty <= 10) {
                 stockDisplay = `<span style="color: #dc3545; font-weight: bold; background: #ffe6e6; padding: 3px 8px; border-radius: 4px; border: 1px solid #ff4d4d;">⚠️ ${stockQty} pcs (Low Stock)</span>`;
             }
 
-            expiryReportTable.innerHTML += `
+            tableBody.innerHTML += `
                 <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding:10px;"><b>${med.name || "N/A"}</b></td>
-                    <td style="padding:10px;">${stockDisplay}</td>
-                    <td style="padding:10px;">${formatMonthYear(med.expiryDate)}</td>
-                    <td style="padding:10px;">${statusBadge}</td>
+                    <td style="padding:12px;"><b>${med.name || "N/A"}</b></td>
+                    <td style="padding:12px;">${stockDisplay}</td>
+                    <td style="padding:12px;">${formatMonthYear(med.expiryDate)}</td>
+                    <td style="padding:12px;">${statusBadge}</td>
                 </tr>
             `;
         });
@@ -119,14 +116,14 @@ async function loadExpiryReports() {
 
     } catch (err) {
         console.error("Error loading expiry report:", err);
-        if (expiryReportTable) {
-            expiryReportTable.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center; padding:20px;">Error loading reports data.</td></tr>`;
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center;">Error loading reports data.</td></tr>`;
         }
     }
 }
 
 /**
- * Date-Wise Sales Report Handler
+ * Date-Wise Sales Report
  */
 function initDailySalesReport() {
     const cardBtn = document.getElementById('dailySalesBtnCard');
@@ -144,14 +141,12 @@ function initDailySalesReport() {
 
         let salesData = [];
 
-        // Try Firestore (with fallback if orderBy throws error)
         try {
             let querySnapshot;
             try {
                 const salesQuery = query(collection(db, "sales"), orderBy("timestamp", "desc"));
                 querySnapshot = await getDocs(salesQuery);
             } catch (indexErr) {
-                console.warn("Ordered query failed, fetching unsorted collection:", indexErr);
                 querySnapshot = await getDocs(collection(db, "sales"));
             }
 
@@ -161,10 +156,9 @@ function initDailySalesReport() {
                 });
             }
         } catch (e) {
-            console.warn("Firestore fetch failed for reports, checking local storage:", e);
+            console.warn("Firestore sales fetch failed:", e);
         }
 
-        // LocalStorage Fallback
         if (salesData.length === 0) {
             salesData = JSON.parse(localStorage.getItem('sales')) || JSON.parse(localStorage.getItem('bills')) || [];
         }
@@ -187,9 +181,7 @@ function initDailySalesReport() {
                 dateKey = new Date(sale.timestamp).toLocaleDateString("en-IN");
             }
 
-            if (!dateKey) {
-                dateKey = "Unknown Date";
-            }
+            if (!dateKey) dateKey = "Unknown Date";
 
             const amount = parseFloat(sale.grandTotal || sale.total || 0);
 
