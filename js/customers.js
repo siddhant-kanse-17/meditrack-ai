@@ -20,12 +20,12 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 2. Fetch Sales and Group by Customer Mobile / Name
+// 2. Load Customer Engine
 async function loadCustomersData() {
   try {
     const customerMap = {};
 
-    // 2A. Read LocalStorage Saved Customers First
+    // Read LocalStorage First
     const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers.forEach(localCust => {
       const mob = String(localCust.mobile || "N/A").trim();
@@ -41,7 +41,7 @@ async function loadCustomersData() {
       };
     });
 
-    // 2B. Read Firestore "sales" collection & Auto-Group
+    // Read Firestore "sales" collection
     try {
       const salesSnapshot = await getDocs(collection(db, "sales"));
       if (!salesSnapshot.empty) {
@@ -111,18 +111,7 @@ function renderEmptyTable() {
   }
 }
 
-// 4. Date Parsing and Invoice Timestamp Helpers for Sorting
-function parseDateToTimestamp(dateStr) {
-  if (!dateStr || dateStr === "N/A") return 0;
-  if (dateStr.includes("/")) {
-    const parts = dateStr.split("/");
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)).getTime();
-    }
-  }
-  return new Date(dateStr).getTime() || 0;
-}
-
+// 4. Timestamp Helper for Sorting
 function getLatestInvoiceTime(cust) {
   if (!cust.bills || cust.bills.length === 0) return 0;
   const lastBill = cust.bills[cust.bills.length - 1];
@@ -133,7 +122,7 @@ function getLatestInvoiceTime(cust) {
   return 0;
 }
 
-// 5. Filter and Sort Logic (Recent First Fix)
+// 5. Filter and Sort Logic
 function applySearchAndSort() {
   let result = [...allCustomers];
 
@@ -150,13 +139,8 @@ function applySearchAndSort() {
   const sortValue = sortSelect ? sortSelect.value : "recent";
 
   if (sortValue === "recent") {
-    // Recent Purchase / Latest Bill First
-    result.sort((a, b) => {
-      const dateA = parseDateToTimestamp(a.lastPurchase);
-      const dateB = parseDateToTimestamp(b.lastPurchase);
-      if (dateB !== dateA) return dateB - dateA;
-      return getLatestInvoiceTime(b) - getLatestInvoiceTime(a);
-    });
+    // Recent Purchase First
+    result.sort((a, b) => getLatestInvoiceTime(b) - getLatestInvoiceTime(a));
   } else if (sortValue === "name") {
     result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   } else if (sortValue === "purchaseHigh") {
@@ -202,7 +186,7 @@ function renderCustomersTable(customersList) {
 if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
 if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-// 7. Complete Reset Handler (Clears LocalStorage + Deletes Firestore Sales Records)
+// 7. Reset Button Handler
 if (resetCustBtn) {
   resetCustBtn.addEventListener('click', async function () {
     if (confirm("⚠️ Kya aap poora Customer data aur billing history permanently reset karna chahte hain?")) {
@@ -210,10 +194,8 @@ if (resetCustBtn) {
         resetCustBtn.disabled = true;
         resetCustBtn.innerText = "Deleting...";
 
-        // Clear LocalStorage
         localStorage.clear();
 
-        // Delete Firestore sales Collection completely
         const salesSnapshot = await getDocs(collection(db, "sales"));
         const deletePromises = [];
         salesSnapshot.forEach((docSnap) => {

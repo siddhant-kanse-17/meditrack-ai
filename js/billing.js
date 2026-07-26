@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase.js";
 
 // DOM Elements
@@ -91,8 +91,6 @@ if (generateBillBtn) {
       generateBillBtn.disabled = true;
       generateBillBtn.innerText = "Saving Bill...";
 
-      // 1. Save Directly to LocalStorage
-      let customers = JSON.parse(localStorage.getItem("customers")) || [];
       const newBill = {
         invoiceNo: invoiceNo,
         date: formattedDate,
@@ -101,7 +99,9 @@ if (generateBillBtn) {
         medicines: billItems
       };
 
-      const existingIndex = customers.findIndex(c => c.mobile === custPhone && custPhone !== "N/A");
+      // 1. Direct LocalStorage Save
+      let customers = JSON.parse(localStorage.getItem("customers")) || [];
+      const existingIndex = customers.findIndex(c => (custPhone !== "N/A" && c.mobile === custPhone) || (custPhone === "N/A" && c.name === custName));
 
       if (existingIndex !== -1) {
         customers[existingIndex].name = custName;
@@ -124,7 +124,7 @@ if (generateBillBtn) {
 
       localStorage.setItem("customers", JSON.stringify(customers));
 
-      // 2. Save To Firestore
+      // 2. Save To Firestore Async
       await addDoc(collection(db, "sales"), {
         invoiceNo: invoiceNo,
         customerName: custName,
