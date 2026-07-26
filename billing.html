@@ -80,12 +80,19 @@
         Add To Bill
     </button>
 
-    <!-- Camera Video Stream Modal / Box -->
+    <!-- Updated Camera Video Stream Modal with Zoom Controls -->
     <div id="scannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; flex-direction: column;">
       <div style="background: white; padding: 20px; border-radius: 10px; width: 320px; text-align: center;">
-        <h3>Scan Medicine Barcode</h3>
-        <div id="reader" style="width: 100%;"></div>
-        <button id="closeScanBtn" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; margin-top: 15px; border-radius: 6px; cursor: pointer;">
+        <h3 style="margin-top: 0;">Scan Medicine Barcode</h3>
+        <div id="reader" style="width: 100%; overflow: hidden; border-radius: 8px;"></div>
+        
+        <!-- Zoom Buttons -->
+        <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: center;">
+          <button type="button" id="zoom1xBtn" style="background: #007bff; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">1x</button>
+          <button type="button" id="zoom2xBtn" style="background: #17a2b8; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">2x Zoom</button>
+        </div>
+
+        <button type="button" id="closeScanBtn" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; margin-top: 12px; border-radius: 6px; cursor: pointer;">
           Close Camera
         </button>
       </div>
@@ -163,7 +170,8 @@
         </button>
     </div>
 
-    <script type="module" src="js/billing.js"></script>
+    <!-- Script version updated to v=888 -->
+    <script type="module" src="js/billing.js?v=888"></script>
 
 </body>
 </html>
