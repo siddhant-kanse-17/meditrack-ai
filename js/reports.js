@@ -197,3 +197,57 @@ function initDailySalesReport() {
         });
     }
 }
+// Function for Date-Wise Sales Popup
+function initDailySalesModal() {
+  const salesBtn = document.getElementById('dailySalesBtnCard');
+  const modal = document.getElementById('salesReportModal');
+  const closeBtn = document.getElementById('closeReportModalBtn');
+  const modalBody = document.getElementById('dailySalesModalBody');
+
+  if (!salesBtn || !modal) return;
+
+  salesBtn.addEventListener('click', function () {
+    const salesData = JSON.parse(localStorage.getItem('sales')) || JSON.parse(localStorage.getItem('bills')) || [];
+
+    if (salesData.length === 0) {
+      modalBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 15px; color: #888;">No sales record found.</td></tr>`;
+      modal.style.display = 'flex';
+      return;
+    }
+
+    const salesByDate = {};
+
+    salesData.forEach(s => {
+      let dateKey = s.date || (s.timestamp ? new Date(s.timestamp).toLocaleDateString() : 'Unknown');
+      let amount = parseFloat(s.grandTotal || s.total || 0);
+
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { totalSales: 0, orderCount: 0 };
+      }
+
+      salesByDate[dateKey].totalSales += amount;
+      salesByDate[dateKey].orderCount += 1;
+    });
+
+    modalBody.innerHTML = Object.keys(salesByDate).map(date => {
+      const data = salesByDate[date];
+      return `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 10px; font-weight: bold;">${date}</td>
+          <td style="padding: 10px;">${data.orderCount} Bills</td>
+          <td style="padding: 10px; color: #28a745; font-weight: bold;">₹${data.totalSales.toFixed(2)}</td>
+        </tr>
+      `;
+    }).join("");
+
+    modal.style.display = 'flex';
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function () {
+      modal.style.display = 'none';
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initDailySalesModal);

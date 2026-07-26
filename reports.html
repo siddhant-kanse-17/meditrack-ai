@@ -1,107 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediTrack-AI | Reports</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediTrack-AI | Reports</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .reports-cards-container {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+    }
+    .report-card {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      flex: 1;
+      min-width: 170px;
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+  </style>
 </head>
 <body>
+  <div class="app-container" style="display: flex;">
+    
+    <!-- Sidebar -->
+    <div class="sidebar" style="width: 240px; min-height: 100vh; background: #0069d9; color: white; padding: 20px;">
+      <h2>💊 MediTrack-AI</h2>
+      <hr style="opacity: 0.3; margin-bottom: 20px;">
+      <p><a href="dashboard.html" style="color: white; text-decoration: none;">🏠 Dashboard</a></p>
+      <p><a href="medicines.html" style="color: white; text-decoration: none;">💊 Medicines</a></p>
+      <p><a href="billing.html" style="color: white; text-decoration: none;">💰 Billing</a></p>
+      <p><a href="customers.html" style="color: white; text-decoration: none;">👥 Customers</a></p>
+      <p><a href="reports.html" style="color: white; text-decoration: none; font-weight: bold;">📊 Reports</a></p>
+    </div>
 
-<div class="dashboard">
+    <!-- Main Content -->
+    <div class="main-content" style="flex: 1; padding: 25px;">
+      <h2 style="text-align: center; margin-bottom: 5px;">Inventory & Expiry Reports 📊</h2>
+      <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Report Date: <strong id="currentDate">26/7/2026</strong></p>
 
-    <aside class="sidebar">
-        <h2>💊 MediTrack-AI</h2>
-        <ul>
-            <li><a href="dashboard.html">🏠 Dashboard</a></li>
-            <li><a href="medicines.html">💊 Medicines</a></li>
-            <li><a href="billing.html">💰 Billing</a></li>
-            <li><a href="customers.html">👥 Customers</a></li>
-            <li><a href="reports.html" class="active">📊 Reports</a></li>
-            <li><a href="settings.html">⚙ Settings</a></li>
-            <li><a href="#" id="logoutBtn">🚪 Logout</a></li>
-        </ul>
-    </aside>
-
-    <main class="content">
-        <h1>Inventory & Expiry Reports 📊</h1>
-        <p>Report Date: <b id="todayReportDate"></b></p>
-        <br>
-
-        <!-- Top Cards Container -->
-        <div class="cards" style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-            <!-- Card 1: Expired -->
-            <div class="card" style="border-left: 5px solid #dc3545;">
-                <h3>Expired Medicines</h3>
-                <p id="expiredCount" style="color: #dc3545;">0</p>
-            </div>
-
-            <!-- Card 2: Expiring Soon -->
-            <div class="card" style="border-left: 5px solid #ffc107;">
-                <h3>Expiring Soon (30 Days)</h3>
-                <p id="expiringSoonCount" style="color: #ffc107;">0</p>
-            </div>
-
-            <!-- Card 3: Total Batches -->
-            <div class="card" style="border-left: 5px solid #17a2b8;">
-                <h3>Total Batches</h3>
-                <p id="totalBatches">0</p>
-            </div>
-
-            <!-- Card 4: Daily Sales History Button -->
-            <div class="card" id="dailySalesBtnCard" style="border-left: 5px solid #28a745; cursor: pointer; transition: 0.2s;">
-                <p style="margin: 0; color: #666; font-size: 13px; font-weight: bold;">📊 Sales History</p>
-                <h3 style="margin: 5px 0 0 0; color: #28a745; font-size: 18px;">📅 All Dates Sales ➔</h3>
-            </div>
-        </div>
-
-        <h2>⚠️ Expiry Alert List</h2>
-        <table class="medicine-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-            <thead>
-                <tr>
-                    <th>Medicine Name</th>
-                    <th>Stock Qty</th>
-                    <th>Expiry Date</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="expiryReportTable">
-                <tr><td colspan="4" style="text-align: center; padding: 15px;">Loading Report Data...</td></tr>
-            </tbody>
-        </table>
-
-    </main>
-
-</div>
-
-<!-- Date-Wise Sales Modal Popup -->
-<div id="salesReportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 9999;">
-    <div style="background: white; padding: 25px; border-radius: 12px; width: 420px; max-width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+      <!-- 4 Cards Grid Container -->
+      <div class="reports-cards-container">
         
-        <!-- Modal Header -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f1f1; padding-bottom: 10px; margin-bottom: 15px;">
-            <h3 style="margin: 0; color: #333;">📅 Date-Wise Total Sales</h3>
-            <button id="closeReportModalBtn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;">✕ Close</button>
+        <!-- Card 1 -->
+        <div class="report-card" style="border-left: 5px solid #dc3545;">
+          <p style="margin: 0; color: #0069d9; font-weight: bold; font-size: 13px;">Expired Medicines</p>
+          <h2 id="expiredCount" style="margin: 5px 0 0 0; color: #dc3545;">0</h2>
         </div>
 
-        <!-- Sales Table -->
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead>
-                <tr style="background: #e9ecef;">
-                    <th style="padding: 10px; border-radius: 4px 0 0 4px;">Date</th>
-                    <th style="padding: 10px; text-align: center;">Bills</th>
-                    <th style="padding: 10px; text-align: right; border-radius: 0 4px 4px 0;">Total Amount</th>
-                </tr>
-            </thead>
-            <tbody id="dailySalesModalBody">
-                <tr><td colspan="3" style="text-align:center; padding:15px;">Loading sales...</td></tr>
-            </tbody>
-        </table>
+        <!-- Card 2 -->
+        <div class="report-card" style="border-left: 5px solid #ffc107;">
+          <p style="margin: 0; color: #0069d9; font-weight: bold; font-size: 13px;">Expiring Soon (30 Days)</p>
+          <h2 id="expiringCount" style="margin: 5px 0 0 0; color: #ffc107;">0</h2>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="report-card" style="border-left: 5px solid #28a745;">
+          <p style="margin: 0; color: #0069d9; font-weight: bold; font-size: 13px;">Total Batches</p>
+          <h2 id="totalBatchesCount" style="margin: 5px 0 0 0; color: #333;">5</h2>
+        </div>
+
+        <!-- Card 4 (Naya Sales History Button Card) -->
+        <div id="dailySalesBtnCard" class="report-card" style="border-left: 5px solid #17a2b8; cursor: pointer; background-color: #f8f9fa;">
+          <p style="margin: 0; color: #17a2b8; font-weight: bold; font-size: 13px;">📊 Daily Sales</p>
+          <h3 style="margin: 5px 0 0 0; color: #17a2b8; font-size: 16px;">📅 View All Dates ➔</h3>
+        </div>
+
+      </div>
+
+      <!-- Expiry Alert Table Area -->
+      <h3>⚠️ Expiry Alert List</h3>
+      <table border="1" style="width: 100%; border-collapse: collapse; text-align: left; background: white;">
+        <thead>
+          <tr style="background: #0069d9; color: white;">
+            <th style="padding: 10px;">Medicine Name</th>
+            <th style="padding: 10px;">Stock Qty</th>
+            <th style="padding: 10px;">Expiry Date</th>
+            <th style="padding: 10px;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="expiryTableBody">
+          <!-- Medicines list injected by js/reports.js -->
+        </tbody>
+      </table>
 
     </div>
-</div>
+  </div>
 
-<script type="module" src="js/reports.js"></script>
+  <!-- Pop-up Modal for Daily Sales Report -->
+  <div id="salesReportModal" class="modal-overlay">
+    <div style="background: white; padding: 25px; border-radius: 12px; width: 420px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+        <h3 style="margin: 0;">📅 Date-Wise Sales History</h3>
+        <button id="closeReportModalBtn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✕ Close</button>
+      </div>
 
+      <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+          <tr style="background: #f1f3f5;">
+            <th style="padding: 10px;">Date</th>
+            <th style="padding: 10px;">Orders</th>
+            <th style="padding: 10px;">Total Sales</th>
+          </tr>
+        </thead>
+        <tbody id="dailySalesModalBody">
+          <tr><td colspan="3" style="text-align: center; padding: 15px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="js/reports.js"></script>
 </body>
 </html>
