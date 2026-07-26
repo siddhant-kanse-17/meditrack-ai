@@ -80,19 +80,20 @@
         Add To Bill
     </button>
 
-    <!-- Updated Camera Video Stream Modal with Zoom Controls -->
-    <div id="scannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; flex-direction: column;">
-      <div style="background: white; padding: 20px; border-radius: 10px; width: 320px; text-align: center;">
-        <h3 style="margin-top: 0;">Scan Medicine Barcode</h3>
-        <div id="reader" style="width: 100%; overflow: hidden; border-radius: 8px;"></div>
+    <!-- Updated Camera Video Stream Modal with High Z-Index & Clickable Zoom Controls -->
+    <div id="scannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+      <div style="background: white; padding: 20px; border-radius: 12px; width: 320px; text-align: center; position: relative;">
+        <h3 style="margin-top: 0; font-size: 18px; color: #333;">Scan Medicine Barcode</h3>
         
-        <!-- Zoom Buttons -->
-        <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: center;">
-          <button type="button" id="zoom1xBtn" style="background: #007bff; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">1x</button>
-          <button type="button" id="zoom2xBtn" style="background: #17a2b8; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">2x Zoom</button>
+        <div id="reader" style="width: 100%; overflow: hidden; border-radius: 8px; position: relative; z-index: 1;"></div>
+        
+        <!-- Zoom Controls (Dashboard Aligned Z-Index) -->
+        <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; position: relative; z-index: 99999; pointer-events: auto;">
+          <button type="button" id="zoom1xBtn" style="background: #007bff; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; position: relative; z-index: 100000;">1x</button>
+          <button type="button" id="zoom2xBtn" style="background: #17a2b8; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; position: relative; z-index: 100000;">2x Zoom</button>
         </div>
 
-        <button type="button" id="closeScanBtn" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; margin-top: 12px; border-radius: 6px; cursor: pointer;">
+        <button type="button" id="closeScanBtn" style="background-color: #dc3545; color: white; border: none; padding: 8px 18px; margin-top: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; position: relative; z-index: 100000;">
           Close Camera
         </button>
       </div>
@@ -170,8 +171,7 @@
         </button>
     </div>
 
-    <!-- Script version updated to v=888 -->
-    <script type="module" src="js/billing.js?v=888"></script>
+    <script type="module" src="js/billing.js?v=999"></script>
 
 </body>
 </html>
