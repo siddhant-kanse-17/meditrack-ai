@@ -179,7 +179,7 @@ if (searchInput) {
 }
 
 // -------------------------------------------------------------
-// Barcode Scanner Logic for Adding Medicines
+// Barcode Scanner & Live API Lookup Integration
 // -------------------------------------------------------------
 
 let medScanner = null;
@@ -187,38 +187,66 @@ const scanBtn = document.getElementById('scanBarcodeBtn');
 const closeBtn = document.getElementById('closeMedScanBtn');
 const modal = document.getElementById('medScannerModal');
 
+// 🌐 Live API Lookup Function
+async function fetchProductDetails(barcode) {
+  try {
+    const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+    const data = await response.json();
+
+    if (data.status === 1 && data.product && (data.product.product_name || data.product.product_name_en)) {
+      const fetchedName = data.product.product_name || data.product.product_name_en;
+      if (medNameInput) {
+        medNameInput.value = fetchedName;
+      }
+    } else {
+      // Fallback: Focus on medicine name input if product name is not in public DB
+      if (medNameInput) {
+        medNameInput.focus();
+      }
+    }
+  } catch (error) {
+    console.warn("API Lookup Offline / Error: ", error);
+    if (medNameInput) medNameInput.focus();
+  }
+}
+
+// 📷 Camera Triggering Logic
 if (scanBtn) {
-  scanBtn.addEventListener('click', function() {
+  scanBtn.addEventListener('click', function () {
     if (modal) modal.style.display = 'flex';
     medScanner = new Html5Qrcode("med-reader");
 
     const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
     medScanner.start(
-      { facingMode: "environment" }, 
-      config, 
-      (decodedText) => {
-        // Barcode scan hote hi automatic input field me fill kar dega
+      { facingMode: "environment" },
+      config,
+      async (decodedText) => {
+        // 1. Fill scanned Barcode
         if (medBarcodeInput) {
           medBarcodeInput.value = decodedText;
         }
 
-        // Camera stop & close
-        medScanner.stop().then(() => {
-          if (modal) modal.style.display = 'none';
-        }).catch(() => {
-          if (modal) modal.style.display = 'none';
-        });
+        // 2. Camera Close
+        try {
+          await medScanner.stop();
+        } catch (e) {
+          console.warn("Scanner stop issue:", e);
+        }
+        if (modal) modal.style.display = 'none';
+
+        // 3. Trigger Live API Fetch for Medicine Name
+        await fetchProductDetails(decodedText);
       }
     ).catch(err => {
-      alert("Camera Start Fail: " + err);
+      alert("Camera Access Error: " + err);
       if (modal) modal.style.display = 'none';
     });
   });
 }
 
 if (closeBtn) {
-  closeBtn.addEventListener('click', function() {
+  closeBtn.addEventListener('click', function () {
     if (medScanner) {
       medScanner.stop().then(() => {
         if (modal) modal.style.display = 'none';
