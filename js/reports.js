@@ -2,11 +2,18 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+// DOM Elements with multi-ID selector fallback
 const expiredCountEl = document.getElementById("expiredCount");
-const expiringSoonCountEl = document.getElementById("expiringSoonCount");
-const totalBatchesEl = document.getElementById("totalBatches");
-const expiryReportTable = document.getElementById("expiryReportTable");
-const todayReportDateEl = document.getElementById("todayReportDate");
+const expiringSoonCountEl = document.getElementById("expiringSoonCount") || document.getElementById("expiringCount");
+const totalBatchesEl = document.getElementById("totalBatches") || document.getElementById("totalBatchesCount");
+
+const expiryReportTable = document.getElementById("expiryReportTable") || 
+                          document.getElementById("expiryTableBody") || 
+                          document.getElementById("reportsTableBody") || 
+                          document.getElementById("expiryReportList") ||
+                          document.querySelector("tbody");
+
+const todayReportDateEl = document.getElementById("todayReportDate") || document.getElementById("currentDate");
 
 // Auth Guard & Core Loader
 onAuthStateChanged(auth, (user) => {
@@ -33,29 +40,45 @@ function formatMonthYear(val) {
 }
 
 /**
- * Load Inventory & Expiry Reports
+ * Load Inventory & Expiry Reports with LocalStorage fallback
  */
 async function loadExpiryReports() {
     try {
-        const querySnapshot = await getDocs(collection(db, "medicines"));
-        
-        let expiredCount = 0;
-        let expiringSoonCount = 0;
-        let totalItems = querySnapshot.size;
+        let medicinesList = [];
+
+        // 1. Fetch from Firestore
+        try {
+            const querySnapshot = await getDocs(collection(db, "medicines"));
+            if (querySnapshot && !querySnapshot.empty) {
+                querySnapshot.forEach((docSnap) => {
+                    medicinesList.push({ id: docSnap.id, ...docSnap.data() });
+                });
+            }
+        } catch (e) {
+            console.warn("Firestore medicines fetch failed, checking local storage:", e);
+        }
+
+        // 2. Fallback to LocalStorage if Firestore is empty or failed
+        if (medicinesList.length === 0) {
+            medicinesList = JSON.parse(localStorage.getItem("medicines")) || [];
+        }
 
         if (!expiryReportTable) return;
         expiryReportTable.innerHTML = "";
 
-        if (totalItems === 0) {
-            expiryReportTable.innerHTML = `<tr><td colspan="4" style="text-align: center;">No medicine records found.</td></tr>`;
+        if (medicinesList.length === 0) {
+            expiryReportTable.innerHTML = `<tr><td colspan="4" style="text-align: center; padding:20px;">No medicine records found.</td></tr>`;
             return;
         }
+
+        let expiredCount = 0;
+        let expiringSoonCount = 0;
+        let totalItems = medicinesList.length;
 
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth() + 1; // 1 to 12
 
-        querySnapshot.forEach((docSnap) => {
-            const med = docSnap.data();
+        medicinesList.forEach((med) => {
             let statusBadge = `<span style="background: #28a745; color: white; padding: 4px 8px; border-radius: 4px;">Safe</span>`;
 
             // Expiry Date logic
@@ -81,7 +104,7 @@ async function loadExpiryReports() {
             }
 
             expiryReportTable.innerHTML += `
-                <tr>
+                <tr style="border-bottom: 1px solid #eee;">
                     <td style="padding:10px;"><b>${med.name || "N/A"}</b></td>
                     <td style="padding:10px;">${stockDisplay}</td>
                     <td style="padding:10px;">${formatMonthYear(med.expiryDate)}</td>
@@ -97,7 +120,7 @@ async function loadExpiryReports() {
     } catch (err) {
         console.error("Error loading expiry report:", err);
         if (expiryReportTable) {
-            expiryReportTable.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center;">Error loading reports data.</td></tr>`;
+            expiryReportTable.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center; padding:20px;">Error loading reports data.</td></tr>`;
         }
     }
 }
