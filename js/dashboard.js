@@ -9,7 +9,7 @@ const totalCustomers = document.getElementById("totalCustomers");
 const lowStockAlerts = document.getElementById("expiryAlerts") || document.getElementById("lowStockAlerts");
 
 // Search & Modal Elements
-const searchInput = document.getElementById("dashboardSearch");
+const searchInput = document.getElementById("dashboardSearch") || document.getElementById("quickSearchInput");
 const searchResults = document.getElementById("searchResults");
 const medModal = document.getElementById("medModal");
 const modalName = document.getElementById("modalMedName");
@@ -97,7 +97,10 @@ if (searchInput) {
             return;
         }
 
-        const filtered = allMedicinesList.filter(m => (m.name || "").toLowerCase().includes(term));
+        const filtered = allMedicinesList.filter(m => 
+            (m.name || "").toLowerCase().includes(term) || 
+            (m.barcode && m.barcode.toLowerCase() === term)
+        );
 
         if (filtered.length === 0) {
             searchResults.innerHTML = `<div style="padding: 10px; color: #888;">No medicine found</div>`;
@@ -144,7 +147,6 @@ if (closeModalBtn) {
 if (sellMedBtn) {
     sellMedBtn.addEventListener("click", () => {
         if (selectedMedicineForBilling) {
-            // Save selected medicine to localStorage so billing.html can read it
             localStorage.setItem("selectedMedForBilling", JSON.stringify(selectedMedicineForBilling));
             window.location.href = "billing.html";
         }
@@ -174,6 +176,60 @@ if (resetBtn) {
             localStorage.clear();
             alert("Data reset ho gaya hai! Fresh start ke liye page reload ho raha hai.");
             window.location.reload();
+        }
+    });
+}
+
+// 5. Camera Scan & Quick Search Auto-Trigger Logic
+let dashScanner = null;
+const dashScanBtn = document.getElementById('dashScanBtn');
+const closeDashScanBtn = document.getElementById('closeDashScanBtn');
+const dashModal = document.getElementById('dashScannerModal');
+
+if (dashScanBtn) {
+    dashScanBtn.addEventListener('click', function () {
+        if (dashModal) dashModal.style.display = 'flex';
+        
+        dashScanner = new Html5Qrcode("dash-reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+        dashScanner.start(
+            { facingMode: "environment" },
+            config,
+            async (decodedText) => {
+                // Check Firestore list first, fallback to localStorage
+                const localMeds = JSON.parse(localStorage.getItem('medicines')) || [];
+                const combinedList = [...allMedicinesList, ...localMeds];
+                
+                const matchedMed = combinedList.find(m => m.barcode === decodedText || m.id === decodedText);
+
+                // Auto-fill and trigger search input
+                if (searchInput) {
+                    searchInput.value = matchedMed ? matchedMed.name : decodedText;
+                    searchInput.dispatchEvent(new Event('input'));
+                }
+
+                // Stop camera & close modal
+                await dashScanner.stop();
+                if (dashModal) dashModal.style.display = 'none';
+            }
+        ).catch(err => {
+            alert("Camera Permission Failed: " + err);
+            if (dashModal) dashModal.style.display = 'none';
+        });
+    });
+}
+
+if (closeDashScanBtn) {
+    closeDashScanBtn.addEventListener('click', function () {
+        if (dashScanner) {
+            dashScanner.stop().then(() => {
+                if (dashModal) dashModal.style.display = 'none';
+            }).catch(() => {
+                if (dashModal) dashModal.style.display = 'none';
+            });
+        } else {
+            if (dashModal) dashModal.style.display = 'none';
         }
     });
 }
