@@ -28,25 +28,35 @@
         <p>Report Date: <b id="todayReportDate"></b></p>
         <br>
 
-        <div class="cards">
+        <!-- Top Cards Container -->
+        <div class="cards" style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+            <!-- Card 1: Expired -->
             <div class="card" style="border-left: 5px solid #dc3545;">
                 <h3>Expired Medicines</h3>
                 <p id="expiredCount" style="color: #dc3545;">0</p>
             </div>
+
+            <!-- Card 2: Expiring Soon -->
             <div class="card" style="border-left: 5px solid #ffc107;">
                 <h3>Expiring Soon (30 Days)</h3>
                 <p id="expiringSoonCount" style="color: #ffc107;">0</p>
             </div>
-            <div class="card" style="border-left: 5px solid #28a745;">
+
+            <!-- Card 3: Total Batches -->
+            <div class="card" style="border-left: 5px solid #17a2b8;">
                 <h3>Total Batches</h3>
                 <p id="totalBatches">0</p>
             </div>
+
+            <!-- Card 4: Daily Sales History Button -->
+            <div class="card" id="dailySalesBtnCard" style="border-left: 5px solid #28a745; cursor: pointer; transition: 0.2s;">
+                <p style="margin: 0; color: #666; font-size: 13px; font-weight: bold;">📊 Sales History</p>
+                <h3 style="margin: 5px 0 0 0; color: #28a745; font-size: 18px;">📅 All Dates Sales ➔</h3>
+            </div>
         </div>
 
-        <br><br>
-
         <h2>⚠️ Expiry Alert List</h2>
-        <table class="medicine-table">
+        <table class="medicine-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
                 <tr>
                     <th>Medicine Name</th>
@@ -56,12 +66,39 @@
                 </tr>
             </thead>
             <tbody id="expiryReportTable">
-                <tr><td colspan="4">Loading Report Data...</td></tr>
+                <tr><td colspan="4" style="text-align: center; padding: 15px;">Loading Report Data...</td></tr>
             </tbody>
         </table>
 
     </main>
 
+</div>
+
+<!-- Date-Wise Sales Modal Popup -->
+<div id="salesReportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 9999;">
+    <div style="background: white; padding: 25px; border-radius: 12px; width: 420px; max-width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        
+        <!-- Modal Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f1f1; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #333;">📅 Date-Wise Total Sales</h3>
+            <button id="closeReportModalBtn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;">✕ Close</button>
+        </div>
+
+        <!-- Sales Table -->
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: #e9ecef;">
+                    <th style="padding: 10px; border-radius: 4px 0 0 4px;">Date</th>
+                    <th style="padding: 10px; text-align: center;">Bills</th>
+                    <th style="padding: 10px; text-align: right; border-radius: 0 4px 4px 0;">Total Amount</th>
+                </tr>
+            </thead>
+            <tbody id="dailySalesModalBody">
+                <tr><td colspan="3" style="text-align:center; padding:15px;">Loading sales...</td></tr>
+            </tbody>
+        </table>
+
+    </div>
 </div>
 
 <script type="module" src="js/reports.js"></script>
