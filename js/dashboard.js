@@ -2,12 +2,12 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// DOM Elements
+// Exact Matching DOM Elements from dashboard.html
 const totalMedicinesEl = document.getElementById("totalMedicines");
-const todaysSalesEl = document.getElementById("todaysSales");
+const todaysSalesEl = document.getElementById("todaySales") || document.getElementById("todaysSales");
 const totalCustomersEl = document.getElementById("totalCustomers");
-const lowStockEl = document.getElementById("lowStockAlerts");
-const adminNameEl = document.getElementById("adminName") || document.querySelector("h1");
+const lowStockEl = document.getElementById("expiryAlerts") || document.getElementById("lowStockAlerts");
+const adminNameEl = document.querySelector("h1");
 const logoutBtn = document.getElementById("logoutBtn");
 
 // Auth Guard & Initial Load
@@ -16,7 +16,7 @@ onAuthStateChanged(auth, (user) => {
         window.location.href = "index.html";
     } else {
         const savedName = localStorage.getItem("adminName") || "Admin";
-        if (adminNameEl && adminNameEl.tagName === "H1") {
+        if (adminNameEl) {
             adminNameEl.innerText = `Welcome ${savedName} 👋`;
         }
         loadDashboardMetrics();
@@ -32,11 +32,10 @@ function getTodayFormattedDate() {
 }
 
 async function loadDashboardMetrics() {
-    // 1. Total Medicines & Accurate Low Stock Counter
+    // 1. Total Medicines & Low Stock Counter Calculation (Checks stock <= 10)
     try {
         let medicines = [];
 
-        // Step A: Fetch from Firestore
         try {
             const medSnap = await getDocs(collection(db, "medicines"));
             medSnap.forEach(doc => medicines.push({ id: doc.id, ...doc.data() }));
@@ -44,24 +43,17 @@ async function loadDashboardMetrics() {
             console.warn("Firestore medicines fetch error:", e);
         }
 
-        // Step B: Fallback to LocalStorage if empty
         if (medicines.length === 0) {
             medicines = JSON.parse(localStorage.getItem("medicines")) || [];
         }
 
         if (totalMedicinesEl) totalMedicinesEl.innerText = medicines.length;
 
-        // Step C: Strict Low Stock Calculation (Checks <= 10)
+        // Count items with stock <= 10
         let lowStockCount = 0;
         medicines.forEach(m => {
-            let qty = 0;
-            if (m.stock !== undefined && m.stock !== null && m.stock !== "") {
-                qty = Number(m.stock);
-            } else if (m.stockQty !== undefined && m.stockQty !== null) {
-                qty = Number(m.stockQty);
-            } else if (m.qty !== undefined && m.qty !== null) {
-                qty = Number(m.qty);
-            }
+            let stockVal = m.stock !== undefined ? m.stock : (m.stockQty !== undefined ? m.stockQty : m.qty);
+            let qty = Number(stockVal || 0);
 
             if (!isNaN(qty) && qty <= 10) {
                 lowStockCount++;
@@ -76,7 +68,7 @@ async function loadDashboardMetrics() {
         console.error("Metrics Medicines Error:", err);
     }
 
-    // 2. Today's Sales Calculation
+    // 2. Today's Sales Calculation (Resets to ₹0 on new calendar dates)
     try {
         let sales = [];
         try {
