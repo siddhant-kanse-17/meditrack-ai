@@ -121,16 +121,27 @@ function initDailySalesReport() {
 
         let salesData = [];
 
+        // Try Firestore (with fallback if orderBy throws error)
         try {
-            const salesQuery = query(collection(db, "sales"), orderBy("timestamp", "desc"));
-            const querySnapshot = await getDocs(salesQuery);
-            querySnapshot.forEach((doc) => {
-                salesData.push({ id: doc.id, ...doc.data() });
-            });
+            let querySnapshot;
+            try {
+                const salesQuery = query(collection(db, "sales"), orderBy("timestamp", "desc"));
+                querySnapshot = await getDocs(salesQuery);
+            } catch (indexErr) {
+                console.warn("Ordered query failed, fetching unsorted collection:", indexErr);
+                querySnapshot = await getDocs(collection(db, "sales"));
+            }
+
+            if (querySnapshot && !querySnapshot.empty) {
+                querySnapshot.forEach((docSnap) => {
+                    salesData.push({ id: docSnap.id, ...docSnap.data() });
+                });
+            }
         } catch (e) {
             console.warn("Firestore fetch failed for reports, checking local storage:", e);
         }
 
+        // LocalStorage Fallback
         if (salesData.length === 0) {
             salesData = JSON.parse(localStorage.getItem('sales')) || JSON.parse(localStorage.getItem('bills')) || [];
         }
