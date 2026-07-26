@@ -1,10 +1,4 @@
-import {
-  collection,
-  getDocs,
-  addDoc,
-  doc,
-  updateDoc
-} from "firebase/firestore";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "./firebase.js";
 
 // DOM Elements
@@ -15,144 +9,56 @@ const billTable = document.getElementById("billTable");
 const grandTotal = document.getElementById("grandTotal");
 const printBtn = document.getElementById("printBill");
 
-// Barcode Scanner UI Elements
-const startScanBtn = document.getElementById("startScanBtn");
-const closeScanBtn = document.getElementById("closeScanBtn");
-const scannerModal = document.getElementById("scannerModal");
-
 let totalAmount = 0;
 let billItems = [];
-let html5QrcodeScanner = null;
 
-// Invoice Number Setup
+// Setup Invoice Info
 const invoiceNo = "INV-" + Date.now();
-if (document.getElementById("invoiceNo")) {
-  document.getElementById("invoiceNo").innerText = invoiceNo;
-}
+if (document.getElementById("invoiceNo")) document.getElementById("invoiceNo").innerText = invoiceNo;
 
-// Date & Time Setup
 const now = new Date();
 const formattedDate = now.toLocaleDateString("en-IN");
 const formattedTime = now.toLocaleTimeString("en-IN");
 
-if (document.getElementById("billDate")) {
-  document.getElementById("billDate").innerText = formattedDate;
-}
-if (document.getElementById("billTime")) {
-  document.getElementById("billTime").innerText = formattedTime;
-}
+if (document.getElementById("billDate")) document.getElementById("billDate").innerText = formattedDate;
+if (document.getElementById("billTime")) document.getElementById("billTime").innerText = formattedTime;
 
-/**
- * Flexible Helper to catch Customer Details from DOM inputs
- */
-function getCustomerDetails() {
-  const nameEl = document.getElementById("customerName") || 
-                 document.getElementById("custName") || 
-                 document.getElementById("customerNameInput") ||
-                 document.querySelector('input[placeholder*="Customer"]') ||
-                 document.querySelector('input[placeholder*="Name"]');
-
-  const phoneEl = document.getElementById("customerPhone") || 
-                  document.getElementById("custPhone") || 
-                  document.getElementById("mobile") || 
-                  document.getElementById("customerMobileInput") ||
-                  document.querySelector('input[placeholder*="Mobile"]') ||
-                  document.querySelector('input[placeholder*="Phone"]');
-
-  const rawName = nameEl && nameEl.value.trim() !== "" ? nameEl.value.trim() : "Walk-in Customer";
-  const rawPhone = phoneEl && phoneEl.value.trim() !== "" ? phoneEl.value.trim() : "N/A";
-
-  return { name: rawName, phone: rawPhone };
-}
-
-// 1. Fetch & Render Medicine Dropdown
+// Load Medicines
 async function loadMedicines() {
   if (!medicineSelect) return;
   medicineSelect.innerHTML = `<option value="">Select Medicine</option>`;
-
   try {
     const querySnapshot = await getDocs(collection(db, "medicines"));
-
     querySnapshot.forEach((docSnap) => {
       const medicine = docSnap.data();
       medicineSelect.innerHTML += `
-        <option
-          value="${medicine.price}"
-          data-stock="${medicine.stock}"
-          data-id="${docSnap.id}"
-          data-barcode="${medicine.barcode || docSnap.id}"
-          data-name="${medicine.name}">
+        <option value="${medicine.price}" data-stock="${medicine.stock}" data-id="${docSnap.id}" data-name="${medicine.name}">
           ${medicine.name}
-        </option>
-      `;
+        </option>`;
     });
-
-    const autoSelectedMed = localStorage.getItem("selectedMedForBilling");
-    if (autoSelectedMed) {
-      const med = JSON.parse(autoSelectedMed);
-      localStorage.removeItem("selectedMedForBilling");
-
-      for (let i = 0; i < medicineSelect.options.length; i++) {
-        if (medicineSelect.options[i].text === med.name || medicineSelect.options[i].getAttribute("data-name") === med.name) {
-          medicineSelect.selectedIndex = i;
-          break;
-        }
-      }
-
-      const qtyInput = document.getElementById("qty");
-      if (qtyInput) {
-        qtyInput.value = 1;
-        qtyInput.focus();
-        qtyInput.select();
-      }
-    }
   } catch (err) {
     console.error("Error loading medicines:", err);
   }
 }
-
 loadMedicines();
 
-// 2. Add Item To Bill
+// Add Item To Bill
 if (addBillBtn) {
-  addBillBtn.addEventListener("click", async () => {
-    const { name: customerName, phone: customerPhone } = getCustomerDetails();
-
-    if (document.getElementById("billCustomer")) document.getElementById("billCustomer").innerText = customerName;
-    if (document.getElementById("billPhone")) document.getElementById("billPhone").innerText = customerPhone;
-
+  addBillBtn.addEventListener("click", () => {
     const selectedOption = medicineSelect.options[medicineSelect.selectedIndex];
-    if (!selectedOption || selectedOption.value === "") {
-      alert("Select a Medicine!");
-      return;
-    }
+    if (!selectedOption || selectedOption.value === "") return alert("Select a Medicine!");
 
-    const medicineName = selectedOption.text;
+    const medicineName = selectedOption.getAttribute("data-name");
     const price = Number(selectedOption.value);
-    const stock = Number(selectedOption.dataset.stock);
-    const medicineId = selectedOption.dataset.id;
     const qtyInput = document.getElementById("qty");
     const qty = Number(qtyInput ? qtyInput.value : 1);
 
-    if (qty <= 0) {
-      alert("Enter valid quantity!");
-      return;
-    }
-    if (qty > stock) {
-      alert("Not enough stock available!");
-      return;
-    }
+    if (qty <= 0) return alert("Enter valid quantity!");
 
     const total = price * qty;
     totalAmount += total;
 
-    billItems.push({
-      medicine: medicineName,
-      name: medicineName,
-      price: price,
-      quantity: qty,
-      total: total
-    });
+    billItems.push({ medicine: medicineName, name: medicineName, price: price, quantity: qty, total: total });
 
     if (billTable) {
       billTable.innerHTML += `
@@ -161,45 +67,33 @@ if (addBillBtn) {
           <td>₹${price}</td>
           <td>${qty}</td>
           <td>₹${total}</td>
-        </tr>
-      `;
+        </tr>`;
     }
 
     if (grandTotal) grandTotal.innerText = `Grand Total: ₹${totalAmount.toFixed(2)}`;
-
-    try {
-      await updateDoc(doc(db, "medicines", medicineId), {
-        stock: stock - qty
-      });
-    } catch (e) {
-      console.error("Failed to update inventory stock:", e);
-    }
-
-    await loadMedicines();
-
     medicineSelect.selectedIndex = 0;
     if (qtyInput) qtyInput.value = "";
   });
 }
 
-// 3. Generate Bill (Direct Reliable Sync)
+// Generate Bill
 if (generateBillBtn) {
   generateBillBtn.addEventListener("click", async () => {
-    if (billItems.length === 0) {
-      alert("Please add at least one medicine to the bill first!");
-      return;
-    }
+    if (billItems.length === 0) return alert("Please add medicines first!");
 
-    const { name: customerName, phone: customerPhone } = getCustomerDetails();
+    const nameEl = document.getElementById("customerName");
+    const phoneEl = document.getElementById("customerPhone");
+
+    const custName = nameEl && nameEl.value.trim() !== "" ? nameEl.value.trim() : "Walk-in Customer";
+    const custPhone = phoneEl && phoneEl.value.trim() !== "" ? phoneEl.value.trim() : "N/A";
 
     try {
       generateBillBtn.disabled = true;
       generateBillBtn.innerText = "Saving Bill...";
 
-      const cleanName = customerName || "Walk-in Customer";
-      const cleanPhone = customerPhone || "N/A";
-
-      const currentBillRecord = {
+      // 1. Save Directly to LocalStorage
+      let customers = JSON.parse(localStorage.getItem("customers")) || [];
+      const newBill = {
         invoiceNo: invoiceNo,
         date: formattedDate,
         time: formattedTime,
@@ -207,74 +101,50 @@ if (generateBillBtn) {
         medicines: billItems
       };
 
-      // ---------------------------------------------------------
-      // 1. GUARANTEED LOCAL STORAGE SAVE
-      // ---------------------------------------------------------
-      let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
-      const existingIndex = localCustomers.findIndex(c => 
-        (cleanPhone !== "N/A" && String(c.mobile).trim() === cleanPhone) ||
-        (cleanPhone === "N/A" && String(c.name).toLowerCase() === cleanName.toLowerCase())
-      );
+      const existingIndex = customers.findIndex(c => c.mobile === custPhone && custPhone !== "N/A");
 
       if (existingIndex !== -1) {
-        localCustomers[existingIndex].name = cleanName;
-        localCustomers[existingIndex].totalBills = (parseInt(localCustomers[existingIndex].totalBills) || 1) + 1;
-        localCustomers[existingIndex].totalPurchase = (parseFloat(localCustomers[existingIndex].totalPurchase) || 0) + totalAmount;
-        localCustomers[existingIndex].lastPurchase = formattedDate;
-        if (!localCustomers[existingIndex].bills) localCustomers[existingIndex].bills = [];
-        localCustomers[existingIndex].bills.push(currentBillRecord);
+        customers[existingIndex].name = custName;
+        customers[existingIndex].totalBills = (customers[existingIndex].totalBills || 1) + 1;
+        customers[existingIndex].totalPurchase = (parseFloat(customers[existingIndex].totalPurchase) || 0) + totalAmount;
+        customers[existingIndex].lastPurchase = formattedDate;
+        if (!customers[existingIndex].bills) customers[existingIndex].bills = [];
+        customers[existingIndex].bills.push(newBill);
       } else {
-        localCustomers.push({
+        customers.push({
           id: "CUST-" + Date.now(),
-          name: cleanName,
-          mobile: cleanPhone,
+          name: custName,
+          mobile: custPhone,
           totalBills: 1,
           totalPurchase: totalAmount,
           lastPurchase: formattedDate,
-          bills: [currentBillRecord]
+          bills: [newBill]
         });
       }
 
-      // Explicitly write to LocalStorage
-      localStorage.setItem('customers', JSON.stringify(localCustomers));
-      localStorage.removeItem('customersReset'); // Remove any stale reset flag
+      localStorage.setItem("customers", JSON.stringify(customers));
 
-      // ---------------------------------------------------------
-      // 2. FIRESTORE SAVE (SALES COLLECTION)
-      // ---------------------------------------------------------
+      // 2. Save To Firestore
       await addDoc(collection(db, "sales"), {
         invoiceNo: invoiceNo,
-        customerName: cleanName,
-        customer: cleanName,
-        name: cleanName,
-        mobile: cleanPhone,
-        customerPhone: cleanPhone,
+        customerName: custName,
+        mobile: custPhone,
         medicines: billItems,
-        items: billItems,
         grandTotal: totalAmount,
-        total: totalAmount,
         date: formattedDate,
         time: formattedTime,
         timestamp: new Date().toISOString()
       });
 
-      alert("Bill Generated & Saved Successfully! 🎉");
-
-      // Redirect after LocalStorage write finishes
+      alert("Bill Generated Successfully! 🎉");
       window.location.href = "customers.html";
 
     } catch (err) {
       alert("Error saving bill: " + err.message);
-      console.error("Save error:", err);
       generateBillBtn.disabled = false;
       generateBillBtn.innerText = "Generate Bill";
     }
   });
 }
 
-// 4. Print Execution
-if (printBtn) {
-  printBtn.addEventListener("click", () => {
-    window.print();
-  });
-}
+if (printBtn) printBtn.addEventListener("click", () => window.print());
