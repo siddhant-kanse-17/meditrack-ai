@@ -2,6 +2,7 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 
+// DOM Elements
 const customersTableBody = document.getElementById("customersTableBody") || document.querySelector("tbody");
 const searchCustomerInput = document.getElementById("searchCustomerInput") || document.getElementById("searchCustomer");
 const sortSelect = document.getElementById("sortCustomersSelect");
@@ -10,6 +11,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 let allCustomers = [];
 
+// 1. Auth Guard Check
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = "index.html";
@@ -18,11 +20,12 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+// 2. Fetch Sales and Group by Customer Mobile / Name
 async function loadCustomersData() {
   try {
     const customerMap = {};
 
-    // 1. Read LocalStorage Saved Customers
+    // 2A. Read LocalStorage Saved Customers First
     const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers.forEach(localCust => {
       const mob = String(localCust.mobile || "N/A").trim();
@@ -38,7 +41,7 @@ async function loadCustomersData() {
       };
     });
 
-    // 2. Read Firestore "sales" collection
+    // 2B. Read Firestore "sales" collection & Auto-Group
     try {
       const salesSnapshot = await getDocs(collection(db, "sales"));
       if (!salesSnapshot.empty) {
@@ -101,12 +104,14 @@ async function loadCustomersData() {
   }
 }
 
+// 3. Render Empty Table State
 function renderEmptyTable() {
   if (customersTableBody) {
     customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No customer records found.</td></tr>`;
   }
 }
 
+// 4. Date Parsing and Invoice Timestamp Helpers for Sorting
 function parseDateToTimestamp(dateStr) {
   if (!dateStr || dateStr === "N/A") return 0;
   if (dateStr.includes("/")) {
@@ -128,6 +133,7 @@ function getLatestInvoiceTime(cust) {
   return 0;
 }
 
+// 5. Filter and Sort Logic
 function applySearchAndSort() {
   let result = [...allCustomers];
 
@@ -144,7 +150,7 @@ function applySearchAndSort() {
   const sortValue = sortSelect ? sortSelect.value : "recent";
 
   if (sortValue === "recent") {
-    // Sorting: Newest/Recent at the top!
+    // Recent Purchase First
     result.sort((a, b) => {
       const dateA = parseDateToTimestamp(a.lastPurchase);
       const dateB = parseDateToTimestamp(b.lastPurchase);
@@ -162,6 +168,7 @@ function applySearchAndSort() {
   renderCustomersTable(result);
 }
 
+// 6. Render Table Rows
 function renderCustomersTable(customersList) {
   if (!customersTableBody) return;
   customersTableBody.innerHTML = "";
@@ -195,7 +202,7 @@ function renderCustomersTable(customersList) {
 if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
 if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-// Complete Reset Button Handler (Deletes Local Storage & Clears Firestore Sales Docs)
+// 7. Complete Reset Handler (Clears LocalStorage + Deletes Firestore Sales Records)
 if (resetCustBtn) {
   resetCustBtn.addEventListener('click', async function () {
     if (confirm("⚠️ Kya aap poora Customer data aur billing history permanently reset karna chahte hain?")) {
@@ -203,12 +210,13 @@ if (resetCustBtn) {
         resetCustBtn.disabled = true;
         resetCustBtn.innerText = "Deleting...";
 
-        // 1. Clear LocalStorage
+        // Clear LocalStorage
         localStorage.removeItem('customers');
         localStorage.removeItem('bills');
         localStorage.removeItem('sales');
+        localStorage.removeItem('customersReset');
 
-        // 2. Clear Firestore sales Collection
+        // Delete Firestore sales Collection
         const salesSnapshot = await getDocs(collection(db, "sales"));
         const deletePromises = [];
         salesSnapshot.forEach((docSnap) => {
@@ -242,7 +250,7 @@ if (logoutBtn) {
   });
 }
 
-// Modal View Bill Logic
+// 8. Modal View Bill Logic
 window.viewCustomerBills = function(mobile) {
   const cust = allCustomers.find(c => String(c.mobile).trim() === String(mobile).trim());
   if (!cust) return;
