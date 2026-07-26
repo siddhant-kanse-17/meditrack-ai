@@ -22,12 +22,20 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+// Helper for promise timeout so Firestore call never hangs execution
+const fetchWithTimeout = (promise, ms = 2500) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms))
+  ]);
+};
+
 // 2. Fetch Sales and Group by Customer
 async function loadCustomersData() {
   try {
     const customerMap = {};
 
-    // 2A. Read LocalStorage
+    // 2A. Read LocalStorage First (Instant Load)
     const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers.forEach(localCust => {
       const mob = String(localCust.mobile || "N/A").trim();
@@ -43,10 +51,10 @@ async function loadCustomersData() {
       };
     });
 
-    // 2B. Read Firestore "sales"
+    // 2B. Read Firestore "sales" with strict timeout fallback
     try {
-      const salesSnapshot = await getDocs(collection(db, "sales"));
-      if (!salesSnapshot.empty) {
+      const salesSnapshot = await fetchWithTimeout(getDocs(collection(db, "sales")), 2500);
+      if (salesSnapshot && !salesSnapshot.empty) {
         salesSnapshot.forEach((docSnap) => {
           const sale = docSnap.data();
           const mob = String(sale.mobile || sale.customerPhone || "N/A").trim();
@@ -86,7 +94,7 @@ async function loadCustomersData() {
         });
       }
     } catch (e) {
-      console.warn("Firestore sales merge note:", e);
+      console.warn("Firestore sync skipped or timed out, rendering local data:", e);
     }
 
     allCustomers = Object.values(customerMap);
@@ -232,15 +240,19 @@ window.deleteSingleCustomer = async function(mobile, name) {
     });
     localStorage.setItem('customers', JSON.stringify(localCustomers));
 
-    const salesRef = collection(db, "sales");
-    let q = (mobile !== "N/A" && mobile !== "") 
-      ? query(salesRef, where("mobile", "==", mobile))
-      : query(salesRef, where("customerName", "==", name));
+    try {
+      const salesRef = collection(db, "sales");
+      let q = (mobile !== "N/A" && mobile !== "") 
+        ? query(salesRef, where("mobile", "==", mobile))
+        : query(salesRef, where("customerName", "==", name));
 
-    const salesSnap = await getDocs(q);
-    const deletePromises = [];
-    salesSnap.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id))));
-    await Promise.all(deletePromises);
+      const salesSnap = await getDocs(q);
+      const deletePromises = [];
+      salesSnap.forEach((docSnap) => deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id))));
+      await Promise.all(deletePromises);
+    } catch(e) {
+      console.warn("Firestore delete warning:", e);
+    }
 
     allCustomers = allCustomers.filter(c => {
       if (mobile !== "N/A" && mobile !== "") {
