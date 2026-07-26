@@ -1,15 +1,17 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
 
 // DOM Elements
 const customersTableBody = document.getElementById("customersTableBody") || document.querySelector("tbody");
 const searchCustomerInput = document.getElementById("searchCustomerInput") || document.getElementById("searchCustomer");
 const sortSelect = document.getElementById("sortCustomersSelect");
-const resetCustBtn = document.getElementById("resetCustomersBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
 let allCustomers = [];
+
+// Force clear any old reset keys on page load
+localStorage.removeItem('customersReset');
 
 // 1. Auth Guard Check
 onAuthStateChanged(auth, (user) => {
@@ -20,15 +22,12 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 2. Load Customer Engine
+// 2. Fetch Sales and Group by Customer Mobile / Name
 async function loadCustomersData() {
-  // Force clear the lock key whenever page loads or resets
-  localStorage.removeItem('customersReset');
-
   try {
     const customerMap = {};
 
-    // Read LocalStorage First
+    // 2A. Read LocalStorage Saved Customers First
     const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers.forEach(localCust => {
       const mob = String(localCust.mobile || "N/A").trim();
@@ -44,7 +43,7 @@ async function loadCustomersData() {
       };
     });
 
-    // Read Firestore "sales" collection
+    // 2B. Read Firestore "sales" collection & Auto-Group
     try {
       const salesSnapshot = await getDocs(collection(db, "sales"));
       if (!salesSnapshot.empty) {
@@ -114,7 +113,18 @@ function renderEmptyTable() {
   }
 }
 
-// 4. Timestamp Helper for Sorting
+// 4. Date Parsing and Invoice Timestamp Helpers for Sorting
+function parseDateToTimestamp(dateStr) {
+  if (!dateStr || dateStr === "N/A") return 0;
+  if (dateStr.includes("/")) {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)).getTime();
+    }
+  }
+  return new Date(dateStr).getTime() || 0;
+}
+
 function getLatestInvoiceTime(cust) {
   if (!cust.bills || cust.bills.length === 0) return 0;
   const lastBill = cust.bills[cust.bills.length - 1];
@@ -125,7 +135,7 @@ function getLatestInvoiceTime(cust) {
   return 0;
 }
 
-// 5. Filter and Sort Logic
+// 5. Filter and Sort Logic (Recent First Fix)
 function applySearchAndSort() {
   let result = [...allCustomers];
 
@@ -142,8 +152,13 @@ function applySearchAndSort() {
   const sortValue = sortSelect ? sortSelect.value : "recent";
 
   if (sortValue === "recent") {
-    // Recent Purchase First
-    result.sort((a, b) => getLatestInvoiceTime(b) - getLatestInvoiceTime(a));
+    // Recent Purchase / Latest Bill First
+    result.sort((a, b) => {
+      const dateA = parseDateToTimestamp(a.lastPurchase);
+      const dateB = parseDateToTimestamp(b.lastPurchase);
+      if (dateB !== dateA) return dateB - dateA;
+      return getLatestInvoiceTime(b) - getLatestInvoiceTime(a);
+    });
   } else if (sortValue === "name") {
     result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   } else if (sortValue === "purchaseHigh") {
@@ -155,7 +170,7 @@ function applySearchAndSort() {
   renderCustomersTable(result);
 }
 
-// 6. Render Table Rows
+// 6. Render Table Rows with Direct Delete Button
 function renderCustomersTable(customersList) {
   if (!customersTableBody) return;
   customersTableBody.innerHTML = "";
@@ -169,16 +184,25 @@ function renderCustomersTable(customersList) {
     const tr = document.createElement("tr");
     tr.style.borderBottom = "1px solid #ddd";
 
+    // Escape special characters for safer inline parameters
+    const safeMobile = String(cust.mobile).replace(/'/g, "\\'");
+    const safeName = String(cust.name).replace(/'/g, "\\'");
+
     tr.innerHTML = `
       <td style="padding:12px;"><b>${cust.name}</b></td>
       <td>${cust.mobile}</td>
       <td>${cust.totalBills}</td>
       <td>₹${Number(cust.totalPurchase || 0).toFixed(2)}</td>
       <td>${cust.lastPurchase}</td>
-      <td>
-        <button onclick="viewCustomerBills('${cust.mobile}')" 
+      <td style="display: flex; gap: 8px; align-items: center; padding-top: 10px;">
+        <button onclick="viewCustomerBills('${safeMobile}')" 
                 style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:14px;">
           👁️ View Bill
+        </button>
+        <button onclick="deleteSingleCustomer('${safeMobile}', '${safeName}')" 
+                style="background:#dc3545; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:14px;"
+                title="Delete Record">
+          🗑️
         </button>
       </td>
     `;
@@ -189,38 +213,58 @@ function renderCustomersTable(customersList) {
 if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
 if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-// 7. Clean Reset Button Handler
-if (resetCustBtn) {
-  resetCustBtn.addEventListener('click', async function () {
-    if (confirm("⚠️ Kya aap poora Customer data permanently reset karna chahte hain?")) {
-      try {
-        resetCustBtn.disabled = true;
-        resetCustBtn.innerText = "Deleting...";
+// 7. Single Customer Row Delete Handler (Deletes from LocalStorage + Firestore Sales)
+window.deleteSingleCustomer = async function(mobile, name) {
+  const identifier = mobile !== "N/A" && mobile !== "" ? mobile : name;
+  if (!confirm(`⚠️ Kya aap "${name}" ka record aur bill history delete karna chahte hain?`)) return;
 
-        // Clear LocalStorage
-        localStorage.clear();
-
-        // Delete Firestore sales Collection
-        const salesSnapshot = await getDocs(collection(db, "sales"));
-        const deletePromises = [];
-        salesSnapshot.forEach((docSnap) => {
-          deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id)));
-        });
-        await Promise.all(deletePromises);
-
-        allCustomers = [];
-        renderEmptyTable();
-        alert("Customer data reset ho gaya hai!");
-      } catch (e) {
-        console.error("Reset error:", e);
-        alert("Reset failed: " + e.message);
-      } finally {
-        resetCustBtn.disabled = false;
-        resetCustBtn.innerText = "🔄 Reset Customers";
+  try {
+    // 1. Remove from LocalStorage
+    let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
+    localCustomers = localCustomers.filter(c => {
+      const mob = String(c.mobile || "N/A").trim();
+      const cName = String(c.name || "Walk-in Customer").trim();
+      if (mobile !== "N/A" && mobile !== "") {
+        return mob !== mobile;
+      } else {
+        return cName.toLowerCase() !== name.toLowerCase();
       }
+    });
+    localStorage.setItem('customers', JSON.stringify(localCustomers));
+
+    // 2. Delete matching Sales docs from Firestore
+    const salesRef = collection(db, "sales");
+    let q;
+    if (mobile !== "N/A" && mobile !== "") {
+      q = query(salesRef, where("mobile", "==", mobile));
+    } else {
+      q = query(salesRef, where("customerName", "==", name));
     }
-  });
-}
+
+    const salesSnap = await getDocs(q);
+    const deletePromises = [];
+    salesSnap.forEach((docSnap) => {
+      deletePromises.push(deleteDoc(doc(db, "sales", docSnap.id)));
+    });
+    await Promise.all(deletePromises);
+
+    // 3. Update Memory State & Re-render
+    allCustomers = allCustomers.filter(c => {
+      if (mobile !== "N/A" && mobile !== "") {
+        return String(c.mobile).trim() !== mobile;
+      } else {
+        return String(c.name).trim().toLowerCase() !== name.toLowerCase();
+      }
+    });
+
+    applySearchAndSort();
+    alert(`"${name}" ka record successfully delete ho gaya hai!`);
+
+  } catch (err) {
+    console.error("Delete Error:", err);
+    alert("Delete operation failed: " + err.message);
+  }
+};
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async (e) => {
