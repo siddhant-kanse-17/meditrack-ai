@@ -179,7 +179,7 @@ if (searchInput) {
 }
 
 // -------------------------------------------------------------
-// Barcode Scanner & Live API Lookup Integration
+// Barcode Scanner & Live Auto-Fetch Integration
 // -------------------------------------------------------------
 
 let medScanner = null;
@@ -187,30 +187,36 @@ const scanBtn = document.getElementById('scanBarcodeBtn');
 const closeBtn = document.getElementById('closeMedScanBtn');
 const modal = document.getElementById('medScannerModal');
 
-// 🌐 Live API Lookup Function
-async function fetchProductDetails(barcode) {
+// 🌐 Public Database Auto-Fetch Function
+async function autoFetchPharmaDetails(barcode) {
   try {
     const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
     const data = await response.json();
 
-    if (data.status === 1 && data.product && (data.product.product_name || data.product.product_name_en)) {
-      const fetchedName = data.product.product_name || data.product.product_name_en;
-      if (medNameInput) {
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+
+      // 1. Auto-fill Medicine Name
+      const fetchedName = p.product_name || p.product_name_en || p.generic_name || "";
+      if (fetchedName && medNameInput) {
         medNameInput.value = fetchedName;
       }
-    } else {
-      // Fallback: Focus on medicine name input if product name is not in public DB
-      if (medNameInput) {
-        medNameInput.focus();
+
+      // 2. Auto-fill MRP/Price (agar public record me present ho)
+      if (p.price && medPriceInput) {
+        medPriceInput.value = p.price;
       }
+    } else {
+      console.log("Barcode record not found in online DB, enter details manually.");
+      if (medNameInput) medNameInput.focus();
     }
   } catch (error) {
-    console.warn("API Lookup Offline / Error: ", error);
+    console.error("API Fetch Error:", error);
     if (medNameInput) medNameInput.focus();
   }
 }
 
-// 📷 Camera Triggering Logic
+// 📷 Camera Trigger Event Listener
 if (scanBtn) {
   scanBtn.addEventListener('click', function () {
     if (modal) modal.style.display = 'flex';
@@ -222,29 +228,30 @@ if (scanBtn) {
       { facingMode: "environment" },
       config,
       async (decodedText) => {
-        // 1. Fill scanned Barcode
+        // 1. Scanned Barcode ID field me auto-paste
         if (medBarcodeInput) {
           medBarcodeInput.value = decodedText;
         }
 
-        // 2. Camera Close
+        // 2. Camera off
         try {
           await medScanner.stop();
         } catch (e) {
-          console.warn("Scanner stop issue:", e);
+          console.warn("Scanner stop warning:", e);
         }
         if (modal) modal.style.display = 'none';
 
-        // 3. Trigger Live API Fetch for Medicine Name
-        await fetchProductDetails(decodedText);
+        // 3. Auto Fetch Medicine Info
+        await autoFetchPharmaDetails(decodedText);
       }
     ).catch(err => {
-      alert("Camera Access Error: " + err);
+      alert("Camera Permissions/Access Error: " + err);
       if (modal) modal.style.display = 'none';
     });
   });
 }
 
+// Camera Cancel Button Event
 if (closeBtn) {
   closeBtn.addEventListener('click', function () {
     if (medScanner) {
