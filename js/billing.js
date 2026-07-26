@@ -54,29 +54,33 @@ function getCustomerDetails() {
 }
 
 /**
- * Automatically Save or Update Customer in Firestore & LocalStorage
+ * Combined Customer Sync Engine (Updates LocalStorage & Firestore Simultaneously)
  */
 async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount) {
-  if (!customerName || customerName === "-" || !mobileNumber) return;
-
-  const todayDate = new Date().toLocaleDateString("en-IN");
+  const cleanName = (customerName || "").trim();
+  const cleanMobile = (mobileNumber || "").trim();
   const amountToIncrement = parseFloat(billTotalAmount) || 0;
+  const todayDate = new Date().toLocaleDateString("en-IN");
 
-  // 1. LocalStorage Sync
+  if (!cleanName || cleanName === "-" || !cleanMobile || cleanMobile === "N/A") {
+    return;
+  }
+
+  // 1. Sync LocalStorage
   try {
     let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
-    const existingIndex = localCustomers.findIndex(c => c.mobile === mobileNumber);
+    const existingIndex = localCustomers.findIndex(c => String(c.mobile).trim() === cleanMobile);
 
     if (existingIndex !== -1) {
-      localCustomers[existingIndex].totalBills = (localCustomers[existingIndex].totalBills || 0) + 1;
+      localCustomers[existingIndex].name = cleanName;
+      localCustomers[existingIndex].totalBills = (parseInt(localCustomers[existingIndex].totalBills) || 1) + 1;
       localCustomers[existingIndex].totalPurchase = (parseFloat(localCustomers[existingIndex].totalPurchase) || 0) + amountToIncrement;
       localCustomers[existingIndex].lastPurchase = todayDate;
-      localCustomers[existingIndex].name = customerName;
     } else {
       localCustomers.push({
         id: "CUST-" + Date.now(),
-        name: customerName,
-        mobile: mobileNumber,
+        name: cleanName,
+        mobile: cleanMobile,
         totalBills: 1,
         totalPurchase: amountToIncrement,
         lastPurchase: todayDate
@@ -84,33 +88,31 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount)
     }
     localStorage.setItem('customers', JSON.stringify(localCustomers));
   } catch (e) {
-    console.warn("LocalStorage customer sync error:", e);
+    console.warn("LocalStorage customer update error:", e);
   }
 
-  // 2. Firestore Sync
+  // 2. Sync Firestore
   try {
     const customersRef = collection(db, "customers");
-    const q = query(customersRef, where("mobile", "==", mobileNumber));
+    const q = query(customersRef, where("mobile", "==", cleanMobile));
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-      // Update Existing Customer
       const customerDoc = querySnapshot.docs[0];
       const existingData = customerDoc.data();
 
       await updateDoc(doc(db, "customers", customerDoc.id), {
-        name: customerName,
-        totalBills: (existingData.totalBills || 0) + 1,
+        name: cleanName,
+        totalBills: (parseInt(existingData.totalBills) || 1) + 1,
         totalPurchase: (parseFloat(existingData.totalPurchase) || 0) + amountToIncrement,
         lastPurchase: todayDate,
         updatedAt: new Date().toISOString()
       });
     } else {
-      // Add New Customer
       await addDoc(customersRef, {
         id: "CUST-" + Date.now(),
-        name: customerName,
-        mobile: mobileNumber,
+        name: cleanName,
+        mobile: cleanMobile,
         totalBills: 1,
         totalPurchase: amountToIncrement,
         lastPurchase: todayDate,
@@ -118,7 +120,7 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount)
       });
     }
   } catch (err) {
-    console.error("Error saving customer to Firestore:", err);
+    console.error("Firestore customer sync error:", err);
   }
 }
 
@@ -144,7 +146,6 @@ async function loadMedicines() {
       `;
     });
 
-    // Check if medicine came from Dashboard Search
     const autoSelectedMed = localStorage.getItem("selectedMedForBilling");
     if (autoSelectedMed) {
       const med = JSON.parse(autoSelectedMed);
@@ -308,7 +309,7 @@ if (addBillBtn) {
       `;
     }
 
-    if (grandTotal) grandTotal.innerText = `Grand Total: ₹${totalAmount}`;
+    if (grandTotal) grandTotal.innerText = `Grand Total: ₹${totalAmount.toFixed(2)}`;
 
     // Update Stock in Firestore
     try {
@@ -319,7 +320,6 @@ if (addBillBtn) {
       console.error("Failed to update stock:", e);
     }
 
-    // Reload Medicines to refresh dropdown stock
     await loadMedicines();
 
     medicineSelect.selectedIndex = 0;
@@ -327,7 +327,7 @@ if (addBillBtn) {
   });
 }
 
-// 3. Generate Bill & Save to Firestore
+// 3. Generate Bill & Save
 if (generateBillBtn) {
   generateBillBtn.addEventListener("click", async () => {
     if (billItems.length === 0) {
@@ -358,7 +358,7 @@ if (generateBillBtn) {
         timestamp: new Date().toISOString()
       });
 
-      // Update / Save Customer metrics
+      // Update LocalStorage and Firestore Customer sheet simultaneously
       await saveOrUpdateCustomer(customerName, customerPhone, totalAmount);
 
       alert("Bill Generated & Saved Successfully! 🎉");
