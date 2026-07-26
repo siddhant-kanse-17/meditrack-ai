@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { collection, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // DOM Elements
 const customersTableBody = document.getElementById("customersTableBody") || document.querySelector("tbody");
