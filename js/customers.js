@@ -21,6 +21,15 @@ onAuthStateChanged(auth, (user) => {
 
 // 2. Fetch Sales & Group by Customer Mobile
 async function loadCustomersData() {
+    // Check if user clicked reset button previously
+    if (localStorage.getItem('customersReset') === 'true') {
+        allCustomers = [];
+        if (customersTableBody) {
+            customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#888;">No customer records found.</td></tr>`;
+        }
+        return;
+    }
+
     try {
         const salesSnapshot = await getDocs(collection(db, "sales"));
         const customerMap = {};
@@ -169,19 +178,21 @@ if (sortSelect) {
 // Reset Customers Data Sheet Handler
 if (resetCustBtn) {
     resetCustBtn.addEventListener('click', function () {
-        const isConfirmed = window.confirm("⚠️ Kya aap poori Customer Data Sheet permanently delete karna chahte hain?");
-        
+        const isConfirmed = window.confirm("⚠️ Kya aap poora Customer data aur billing history permanently reset karna chahte hain?");
+
         if (isConfirmed) {
-            // Clear local cache storage
+            // 1. Clear both customers list and related sales/bills
             localStorage.removeItem('customers');
-            allCustomers = [];
+            localStorage.removeItem('bills');
+            localStorage.removeItem('sales');
 
-            // Update UI immediately
-            if (customersTableBody) {
-                customersTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #888;">No customer records found.</td></tr>`;
-            }
+            // 2. Set persistent reset flag
+            localStorage.setItem('customersReset', 'true');
 
-            alert("Pura customer data sheet reset ho gaya hai!");
+            alert("Customer data permanently delete ho gaya hai!");
+
+            // 3. Page reload so UI updates cleanly
+            location.reload();
         }
     });
 }
