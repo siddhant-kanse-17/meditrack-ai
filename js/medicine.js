@@ -1,13 +1,6 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "firebase/auth";
-import { 
-    collection, 
-    addDoc, 
-    getDocs, 
-    deleteDoc, 
-    updateDoc,
-    doc 
-} from "firebase/firestore";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const medForm = document.getElementById("medicineForm");
 const medBarcodeInput = document.getElementById("medBarcode");

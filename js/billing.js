@@ -1,5 +1,6 @@
-import { collection, addDoc, getDocs, doc, updateDoc } from "firebase/firestore";
-import { db } from "./firebase.js";
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // DOM Elements
 const generateBillBtn = document.getElementById("generateBill");
