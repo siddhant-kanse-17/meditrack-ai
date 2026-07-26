@@ -112,10 +112,32 @@ function renderEmptyTable() {
   }
 }
 
-// 4. Search and Sort Filter Logic
+/**
+ * Helper to parse Indian Date format (DD/MM/YYYY) into JavaScript Timestamp for accurate sorting
+ */
+function parseDateToTimestamp(dateStr) {
+  if (!dateStr || dateStr === "N/A") return 0;
+  
+  // If date contains slashes (e.g. "26/7/2026")
+  if (dateStr.includes("/")) {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // Months are 0-indexed in JS
+      const year = parseInt(parts[2], 10);
+      return new Date(year, month, day).getTime();
+    }
+  }
+  
+  const parsed = new Date(dateStr).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+// 4. Search and Sort Filter Logic (Recent First Fix)
 function applySearchAndSort() {
   let result = [...allCustomers];
 
+  // Search Filter
   if (searchCustomerInput) {
     const term = searchCustomerInput.value.toLowerCase().trim();
     if (term !== "") {
@@ -129,7 +151,8 @@ function applySearchAndSort() {
   const sortValue = sortSelect ? sortSelect.value : "recent";
 
   if (sortValue === "recent") {
-    result.sort((a, b) => new Date(b.lastPurchase || 0) - new Date(a.lastPurchase || 0));
+    // Newest/Recent Purchase at Top (Descending Order)
+    result.sort((a, b) => parseDateToTimestamp(b.lastPurchase) - parseDateToTimestamp(a.lastPurchase));
   } else if (sortValue === "name") {
     result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   } else if (sortValue === "purchaseHigh") {
