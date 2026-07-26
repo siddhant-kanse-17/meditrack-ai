@@ -5,15 +5,8 @@ import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/fir
 const expiredCountEl = document.getElementById("expiredCount");
 const expiringSoonCountEl = document.getElementById("expiringSoonCount");
 const totalBatchesEl = document.getElementById("totalBatches");
+const expiryReportTable = document.getElementById("expiryReportTable");
 const todayReportDateEl = document.getElementById("todayReportDate");
-
-// Safe Table Selector
-function getTableBody() {
-    return document.getElementById("expiryReportTable") || 
-           document.getElementById("reportsTableBody") || 
-           document.getElementById("expiryTableBody") || 
-           document.querySelector("tbody");
-}
 
 // Auth Guard & Core Loader
 onAuthStateChanged(auth, (user) => {
@@ -32,9 +25,10 @@ if (todayReportDateEl) {
 
 function formatMonthYear(val) {
     if (!val) return 'N/A';
-    const parts = val.split("-");
-    if (parts.length === 2) {
-        return `${parts[1]}/${parts[0]}`;
+    if (val.includes("-")) {
+        const parts = val.split("-");
+        if (parts.length === 2) return `${parts[1]}/${parts[0]}`;
+        if (parts.length === 3) return `${parts[1]}/${parts[0]}`;
     }
     return val;
 }
@@ -43,7 +37,6 @@ function formatMonthYear(val) {
  * Load Inventory & Expiry Reports
  */
 async function loadExpiryReports() {
-    const tableBody = getTableBody();
     try {
         let medicinesList = [];
 
@@ -57,16 +50,16 @@ async function loadExpiryReports() {
             console.warn("Firestore fetch error, checking local storage:", e);
         }
 
-        // 2. Fallback LocalStorage
+        // 2. Fallback to LocalStorage
         if (medicinesList.length === 0) {
             medicinesList = JSON.parse(localStorage.getItem("medicines")) || [];
         }
 
-        if (!tableBody) return;
-        tableBody.innerHTML = "";
+        if (!expiryReportTable) return;
+        expiryReportTable.innerHTML = "";
 
         if (medicinesList.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">No medicine records found.</td></tr>`;
+            expiryReportTable.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">No medicine records found.</td></tr>`;
             return;
         }
 
@@ -80,32 +73,43 @@ async function loadExpiryReports() {
         medicinesList.forEach((med) => {
             let statusBadge = `<span style="background: #28a745; color: white; padding: 4px 8px; border-radius: 4px;">Safe</span>`;
 
-            if (med.expiryDate && med.expiryDate.includes("-")) {
-                const parts = med.expiryDate.split("-");
-                const expYear = parseInt(parts[0], 10);
-                const expMonth = parseInt(parts[1], 10);
+            const expStr = med.expDate || med.expiryDate || med.exp || "";
 
-                if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
-                    expiredCount++;
-                    statusBadge = `<span style="background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px;">Expired</span>`;
-                } else if (expYear === currentYear && expMonth === currentMonth) {
-                    expiringSoonCount++;
-                    statusBadge = `<span style="background: #ffc107; color: black; padding: 4px 8px; border-radius: 4px;">Expiring Soon</span>`;
+            if (expStr) {
+                let expYear = 0, expMonth = 0;
+                if (expStr.includes("-")) {
+                    const parts = expStr.split("-");
+                    expYear = parseInt(parts[0], 10);
+                    expMonth = parseInt(parts[1], 10);
+                } else if (expStr.includes("/")) {
+                    const parts = expStr.split("/");
+                    expMonth = parseInt(parts[0], 10);
+                    expYear = parseInt(parts[1], 10);
+                }
+
+                if (expYear > 0) {
+                    if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+                        expiredCount++;
+                        statusBadge = `<span style="background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px;">Expired</span>`;
+                    } else if (expYear === currentYear && expMonth === currentMonth) {
+                        expiringSoonCount++;
+                        statusBadge = `<span style="background: #ffc107; color: black; padding: 4px 8px; border-radius: 4px;">Expiring Soon</span>`;
+                    }
                 }
             }
 
-            const stockQty = Number(med.stock || 0);
+            const stockQty = Number(med.stock || med.stockQty || 0);
             let stockDisplay = `${stockQty} pcs`;
             if (stockQty <= 10) {
                 stockDisplay = `<span style="color: #dc3545; font-weight: bold; background: #ffe6e6; padding: 3px 8px; border-radius: 4px; border: 1px solid #ff4d4d;">⚠️ ${stockQty} pcs (Low Stock)</span>`;
             }
 
-            tableBody.innerHTML += `
+            expiryReportTable.innerHTML += `
                 <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding:12px;"><b>${med.name || "N/A"}</b></td>
-                    <td style="padding:12px;">${stockDisplay}</td>
-                    <td style="padding:12px;">${formatMonthYear(med.expiryDate)}</td>
-                    <td style="padding:12px;">${statusBadge}</td>
+                    <td style="padding:10px;"><b>${med.name || med.medicineName || "N/A"}</b></td>
+                    <td style="padding:10px;">${stockDisplay}</td>
+                    <td style="padding:10px;">${formatMonthYear(expStr)}</td>
+                    <td style="padding:10px;">${statusBadge}</td>
                 </tr>
             `;
         });
@@ -116,14 +120,14 @@ async function loadExpiryReports() {
 
     } catch (err) {
         console.error("Error loading expiry report:", err);
-        if (tableBody) {
-            tableBody.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center;">Error loading reports data.</td></tr>`;
+        if (expiryReportTable) {
+            expiryReportTable.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center;">Error loading reports data.</td></tr>`;
         }
     }
 }
 
 /**
- * Date-Wise Sales Report
+ * Date-Wise Sales Report Modal
  */
 function initDailySalesReport() {
     const cardBtn = document.getElementById('dailySalesBtnCard');

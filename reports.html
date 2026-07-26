@@ -51,7 +51,7 @@
     <!-- Main Content -->
     <div class="main-content" style="flex: 1; padding: 25px;">
       <h2 style="text-align: center; margin-bottom: 5px;">Inventory & Expiry Reports 📊</h2>
-      <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Report Date: <strong id="currentDate">26/7/2026</strong></p>
+      <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Report Date: <strong id="todayReportDate">26/7/2026</strong></p>
 
       <!-- 4 Cards Grid Container -->
       <div class="reports-cards-container">
@@ -65,16 +65,16 @@
         <!-- Card 2 -->
         <div class="report-card" style="border-left: 5px solid #ffc107;">
           <p style="margin: 0; color: #0069d9; font-weight: bold; font-size: 13px;">Expiring Soon (30 Days)</p>
-          <h2 id="expiringCount" style="margin: 5px 0 0 0; color: #ffc107;">0</h2>
+          <h2 id="expiringSoonCount" style="margin: 5px 0 0 0; color: #ffc107;">0</h2>
         </div>
 
         <!-- Card 3 -->
         <div class="report-card" style="border-left: 5px solid #28a745;">
           <p style="margin: 0; color: #0069d9; font-weight: bold; font-size: 13px;">Total Batches</p>
-          <h2 id="totalBatchesCount" style="margin: 5px 0 0 0; color: #333;">5</h2>
+          <h2 id="totalBatches" style="margin: 5px 0 0 0; color: #333;">0</h2>
         </div>
 
-        <!-- Card 4 (Naya Sales History Button Card) -->
+        <!-- Card 4 (Daily Sales History Card) -->
         <div id="dailySalesBtnCard" class="report-card" style="border-left: 5px solid #17a2b8; cursor: pointer; background-color: #f8f9fa;">
           <p style="margin: 0; color: #17a2b8; font-weight: bold; font-size: 13px;">📊 Daily Sales</p>
           <h3 style="margin: 5px 0 0 0; color: #17a2b8; font-size: 16px;">📅 View All Dates ➔</h3>
@@ -93,8 +93,8 @@
             <th style="padding: 10px;">Status</th>
           </tr>
         </thead>
-        <tbody id="expiryTableBody">
-          <!-- Medicines list injected by js/reports.js -->
+        <tbody id="expiryReportTable">
+          <tr><td colspan="4" style="text-align: center; padding:20px;">Loading reports...</td></tr>
         </tbody>
       </table>
 
@@ -113,7 +113,7 @@
         <thead>
           <tr style="background: #f1f3f5;">
             <th style="padding: 10px;">Date</th>
-            <th style="padding: 10px;">Orders</th>
+            <th style="padding: 10px;">Bills</th>
             <th style="padding: 10px;">Total Sales</th>
           </tr>
         </thead>
@@ -124,6 +124,7 @@
     </div>
   </div>
 
-  <script src="js/reports.js"></script>
+  <!-- Forced Fresh Version Script Import -->
+  <script type="module" src="js/reports.js?v=99"></script>
 </body>
 </html>
