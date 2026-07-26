@@ -20,41 +20,36 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 2. Fetch Sales from Firestore & LocalStorage, then Group by Customer Mobile
+// 2. Core Load Engine (LocalStorage + Firestore Merge)
 async function loadCustomersData() {
   try {
     const customerMap = {};
 
-    // 2A. Sync LocalStorage Saved Customers First
+    // 2A. Read LocalStorage Saved Customers First
     const localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
     localCustomers.forEach(localCust => {
       const mob = String(localCust.mobile || "N/A").trim();
-      if (mob !== "N/A" && mob !== "") {
-        customerMap[mob] = {
-          name: localCust.name || "Walk-in Customer",
-          mobile: mob,
-          totalBills: Number(localCust.totalBills || 1),
-          totalPurchase: Number(localCust.totalPurchase || 0),
-          lastPurchase: localCust.lastPurchase || "N/A",
-          bills: localCust.bills || []
-        };
-      }
+      const key = mob !== "N/A" && mob !== "" ? mob : (localCust.name || "Walk-in Customer");
+
+      customerMap[key] = {
+        name: localCust.name || "Walk-in Customer",
+        mobile: mob,
+        totalBills: Number(localCust.totalBills || 1),
+        totalPurchase: Number(localCust.totalPurchase || 0),
+        lastPurchase: localCust.lastPurchase || "N/A",
+        bills: localCust.bills || []
+      };
     });
 
-    // 2B. Fetch Firestore Sales & Group them
+    // 2B. Read Firestore "sales" collection & Auto-Group
     try {
       const salesSnapshot = await getDocs(collection(db, "sales"));
       if (!salesSnapshot.empty) {
         salesSnapshot.forEach((docSnap) => {
           const sale = docSnap.data();
-          const mobile = String(sale.mobile || sale.phone || sale.customerPhone || sale.customerMobile || "N/A").trim();
-          
-          let name = sale.customerName || sale.customer || sale.name || sale.custName;
-          if (!name || name.trim() === "" || name === "Guest Customer") {
-            name = mobile !== "N/A" ? `Customer (${mobile.slice(-4)})` : "Walk-in Customer";
-          }
-
-          const amount = Number(sale.grandTotal || sale.totalAmount || sale.total || 0);
+          const mob = String(sale.mobile || sale.customerPhone || "N/A").trim();
+          const name = sale.customerName || sale.customer || sale.name || "Walk-in Customer";
+          const amount = Number(sale.grandTotal || sale.total || 0);
           const date = sale.date || (sale.timestamp ? new Date(sale.timestamp).toLocaleDateString("en-IN") : "N/A");
 
           const billRecord = {
@@ -66,42 +61,42 @@ async function loadCustomersData() {
             medicines: sale.medicines || sale.items || []
           };
 
-          if (!customerMap[mobile]) {
-            customerMap[mobile] = {
+          const mapKey = mob !== "N/A" && mob !== "" ? mob : name;
+
+          if (!customerMap[mapKey]) {
+            customerMap[mapKey] = {
               name: name,
-              mobile: mobile,
+              mobile: mob,
               totalBills: 1,
               totalPurchase: amount,
               lastPurchase: date,
               bills: [billRecord]
             };
           } else {
-            if (customerMap[mobile].name.startsWith("Customer (") && !name.startsWith("Customer (")) {
-              customerMap[mobile].name = name;
-            }
-            // Avoid duplicate counting if already loaded from LocalStorage
-            if (!customerMap[mobile].bills.some(b => b.invoiceNo === billRecord.invoiceNo)) {
-              customerMap[mobile].totalBills += 1;
-              customerMap[mobile].totalPurchase += amount;
-              customerMap[mobile].lastPurchase = date;
-              customerMap[mobile].bills.push(billRecord);
+            // Check if this invoice is already merged from LocalStorage
+            const exists = customerMap[mapKey].bills.some(b => b.invoiceNo === billRecord.invoiceNo);
+            if (!exists) {
+              customerMap[mapKey].totalBills += 1;
+              customerMap[mapKey].totalPurchase += amount;
+              customerMap[mapKey].lastPurchase = date;
+              customerMap[mapKey].bills.push(billRecord);
             }
           }
         });
       }
     } catch (e) {
-      console.warn("Firestore customer fetch failed, fallback to LocalStorage:", e);
+      console.warn("Firestore sales merge note:", e);
     }
 
     allCustomers = Object.values(customerMap);
 
-    // If reset was clicked AND no new customers exist
+    // If reset button was clicked and NO new customer exists
     if (localStorage.getItem('customersReset') === 'true' && allCustomers.length === 0) {
       renderEmptyTable();
       return;
     }
 
-    // If new customers exist, clear the reset lock
+    // If customers exist, clear the reset lock automatically
     if (allCustomers.length > 0) {
       localStorage.removeItem('customersReset');
     }
@@ -128,7 +123,7 @@ function renderEmptyTable() {
   }
 }
 
-// 4. Filter and Sort Logic
+// 4. Search and Sort Filter Logic
 function applySearchAndSort() {
   let result = [...allCustomers];
 
@@ -157,7 +152,7 @@ function applySearchAndSort() {
   renderCustomersTable(result);
 }
 
-// 5. Render Rows in DOM
+// 5. Render DOM Rows
 function renderCustomersTable(customersList) {
   if (!customersTableBody) return;
   customersTableBody.innerHTML = "";
@@ -190,7 +185,7 @@ function renderCustomersTable(customersList) {
   });
 }
 
-// 6. Dynamic Event Bindings
+// 6. Dynamic Event Listeners
 if (searchCustomerInput) {
   searchCustomerInput.addEventListener("input", applySearchAndSort);
 }
@@ -199,10 +194,10 @@ if (sortSelect) {
   sortSelect.addEventListener("change", applySearchAndSort);
 }
 
-// Reset Customer History Handler
+// Reset Customers Handler
 if (resetCustBtn) {
   resetCustBtn.addEventListener('click', function () {
-    if (confirm("⚠️ Are you sure you want to permanently reset all customer records and local bill history?")) {
+    if (confirm("⚠️ Are you sure you want to delete all customer records and local bill history?")) {
       localStorage.removeItem('customers');
       localStorage.removeItem('bills');
       localStorage.removeItem('sales');
@@ -228,7 +223,7 @@ if (logoutBtn) {
   });
 }
 
-// 7. Modal & Print Logic
+// 7. View Bill Modal Engine
 window.viewCustomerBills = function(mobile) {
   const cust = allCustomers.find(c => String(c.mobile).trim() === String(mobile).trim());
   if (!cust) return;

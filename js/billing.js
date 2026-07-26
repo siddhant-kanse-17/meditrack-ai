@@ -3,10 +3,7 @@ import {
   getDocs,
   addDoc,
   doc,
-  updateDoc,
-  query,
-  where,
-  arrayUnion
+  updateDoc
 } from "firebase/firestore";
 import { db } from "./firebase.js";
 
@@ -45,24 +42,9 @@ if (document.getElementById("billTime")) {
   document.getElementById("billTime").innerText = formattedTime;
 }
 
-/**
- * Super-flexible Helper to catch Customer Details across various HTML input configurations
- */
 function getCustomerDetails() {
-  const nameEl = document.getElementById("customerName") || 
-                 document.getElementById("custName") || 
-                 document.getElementById("customerNameInput") ||
-                 document.querySelector('input[placeholder*="Customer"]') ||
-                 document.querySelector('input[placeholder*="Name"]') ||
-                 document.querySelectorAll('input')[0];
-
-  const phoneEl = document.getElementById("customerPhone") || 
-                  document.getElementById("custPhone") || 
-                  document.getElementById("mobile") || 
-                  document.getElementById("customerMobileInput") ||
-                  document.querySelector('input[placeholder*="Mobile"]') ||
-                  document.querySelector('input[placeholder*="Phone"]') ||
-                  document.querySelectorAll('input')[1];
+  const nameEl = document.getElementById("customerName");
+  const phoneEl = document.getElementById("customerPhone");
 
   const rawName = nameEl && nameEl.value.trim() !== "" ? nameEl.value.trim() : "Walk-in Customer";
   const rawPhone = phoneEl && phoneEl.value.trim() !== "" ? phoneEl.value.trim() : "N/A";
@@ -70,10 +52,7 @@ function getCustomerDetails() {
   return { name: rawName, phone: rawPhone };
 }
 
-/**
- * Direct Synchronous LocalStorage & Async Firestore Sync Engine
- */
-async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount, itemsList) {
+function saveCustomerToLocal(customerName, mobileNumber, billTotalAmount, itemsList) {
   let cleanName = (customerName || "").trim();
   let cleanMobile = (mobileNumber || "").trim();
   const amountToIncrement = parseFloat(billTotalAmount) || 0;
@@ -89,10 +68,9 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount,
     medicines: itemsList || []
   };
 
-  // 1. Direct LocalStorage Sync (Blocking execution guarantees state before navigation)
   try {
     let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
-    
+
     const existingIndex = localCustomers.findIndex(c => 
       (cleanMobile !== "N/A" && String(c.mobile).trim() === cleanMobile) ||
       (cleanMobile === "N/A" && String(c.name).toLowerCase() === cleanName.toLowerCase())
@@ -118,47 +96,9 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount,
     }
 
     localStorage.setItem('customers', JSON.stringify(localCustomers));
-    localStorage.removeItem('customersReset'); // Remove reset lock
+    localStorage.removeItem('customersReset'); // Remove reset lock on new bill
   } catch (e) {
     console.warn("LocalStorage customer write warning:", e);
-  }
-
-  // 2. Async Firestore Sync
-  try {
-    const customersRef = collection(db, "customers");
-    const q = cleanMobile !== "N/A" 
-      ? query(customersRef, where("mobile", "==", cleanMobile))
-      : query(customersRef, where("name", "==", cleanName));
-
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      const customerDoc = querySnapshot.docs[0];
-      const existingData = customerDoc.data();
-
-      await updateDoc(doc(db, "customers", customerDoc.id), {
-        name: cleanName,
-        mobile: cleanMobile,
-        totalBills: (parseInt(existingData.totalBills) || 1) + 1,
-        totalPurchase: (parseFloat(existingData.totalPurchase) || 0) + amountToIncrement,
-        lastPurchase: formattedDate,
-        updatedAt: new Date().toISOString(),
-        bills: arrayUnion(currentBillRecord)
-      });
-    } else {
-      await addDoc(customersRef, {
-        id: "CUST-" + Date.now(),
-        name: cleanName,
-        mobile: cleanMobile,
-        totalBills: 1,
-        totalPurchase: amountToIncrement,
-        lastPurchase: formattedDate,
-        createdAt: new Date().toISOString(),
-        bills: [currentBillRecord]
-      });
-    }
-  } catch (err) {
-    console.error("Firestore customer sync warning:", err);
   }
 }
 
@@ -196,7 +136,7 @@ async function loadMedicines() {
         }
       }
 
-      const qtyInput = document.getElementById("qty") || document.querySelector('input[type="number"]');
+      const qtyInput = document.getElementById("qty");
       if (qtyInput) {
         qtyInput.value = 1;
         qtyInput.focus();
@@ -209,82 +149,6 @@ async function loadMedicines() {
 }
 
 loadMedicines();
-
-// -------------------------------------------------------------
-// Barcode Scanner Integration
-// -------------------------------------------------------------
-
-if (startScanBtn) {
-  startScanBtn.addEventListener("click", function () {
-    if (scannerModal) scannerModal.style.display = "flex";
-
-    html5QrcodeScanner = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
-
-    html5QrcodeScanner
-      .start({ facingMode: "environment" }, config, onScanSuccess)
-      .catch((err) => {
-        alert("Camera access failed: " + err);
-        if (scannerModal) scannerModal.style.display = "none";
-      });
-  });
-}
-
-async function onScanSuccess(decodedText) {
-  if (html5QrcodeScanner) {
-    try {
-      await html5QrcodeScanner.stop();
-    } catch (e) {
-      console.warn("Scanner stop exception:", e);
-    }
-  }
-  if (scannerModal) scannerModal.style.display = "none";
-
-  let matchedIndex = -1;
-
-  for (let i = 0; i < medicineSelect.options.length; i++) {
-    const opt = medicineSelect.options[i];
-    const barcode = opt.getAttribute("data-barcode");
-    const docId = opt.getAttribute("data-id");
-    const name = opt.getAttribute("data-name");
-
-    if (barcode === decodedText || docId === decodedText || name === decodedText) {
-      matchedIndex = i;
-      break;
-    }
-  }
-
-  if (matchedIndex !== -1) {
-    medicineSelect.selectedIndex = matchedIndex;
-    const qtyInput = document.getElementById("qty") || document.querySelector('input[type="number"]');
-    if (qtyInput) {
-      qtyInput.value = 1;
-      qtyInput.focus();
-    }
-    alert(`Matched: ${medicineSelect.options[matchedIndex].text}`);
-  } else {
-    alert(`Medicine with Barcode/ID "${decodedText}" not found!`);
-  }
-}
-
-if (closeScanBtn) {
-  closeScanBtn.addEventListener("click", function () {
-    if (html5QrcodeScanner) {
-      html5QrcodeScanner
-        .stop()
-        .then(() => {
-          if (scannerModal) scannerModal.style.display = "none";
-        })
-        .catch(() => {
-          if (scannerModal) scannerModal.style.display = "none";
-        });
-    } else {
-      if (scannerModal) scannerModal.style.display = "none";
-    }
-  });
-}
-
-// -------------------------------------------------------------
 
 // 2. Add Item To Bill
 if (addBillBtn) {
@@ -304,7 +168,7 @@ if (addBillBtn) {
     const price = Number(selectedOption.value);
     const stock = Number(selectedOption.dataset.stock);
     const medicineId = selectedOption.dataset.id;
-    const qtyInput = document.getElementById("qty") || document.querySelector('input[type="number"]');
+    const qtyInput = document.getElementById("qty");
     const qty = Number(qtyInput ? qtyInput.value : 1);
 
     if (qty <= 0) {
@@ -340,7 +204,6 @@ if (addBillBtn) {
 
     if (grandTotal) grandTotal.innerText = `Grand Total: ₹${totalAmount.toFixed(2)}`;
 
-    // Update Stock in Firestore
     try {
       await updateDoc(doc(db, "medicines", medicineId), {
         stock: stock - qty
@@ -356,7 +219,7 @@ if (addBillBtn) {
   });
 }
 
-// 3. Generate Bill & Direct Synchronous Save
+// 3. Generate Bill
 if (generateBillBtn) {
   generateBillBtn.addEventListener("click", async () => {
     if (billItems.length === 0) {
@@ -370,10 +233,10 @@ if (generateBillBtn) {
       generateBillBtn.disabled = true;
       generateBillBtn.innerText = "Saving Bill...";
 
-      // Synchronous LocalStorage Push & Customer Update
-      await saveOrUpdateCustomer(customerName, customerPhone, totalAmount, billItems);
+      // 1. Save to LocalStorage immediately
+      saveCustomerToLocal(customerName, customerPhone, totalAmount, billItems);
 
-      // Save Sales Record in Firestore
+      // 2. Save Sales Record in Firestore
       await addDoc(collection(db, "sales"), {
         invoiceNo: invoiceNo,
         customerName: customerName,
@@ -391,7 +254,6 @@ if (generateBillBtn) {
       });
 
       alert("Bill Generated & Saved Successfully! 🎉");
-
       window.location.href = "customers.html";
 
     } catch (err) {
