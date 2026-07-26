@@ -14,8 +14,14 @@ const billTable = document.getElementById("billTable");
 const grandTotal = document.getElementById("grandTotal");
 const printBtn = document.getElementById("printBill");
 
+// Barcode Scan UI Elements
+const startScanBtn = document.getElementById("startScanBtn");
+const closeScanBtn = document.getElementById("closeScanBtn");
+const scannerModal = document.getElementById("scannerModal");
+
 let totalAmount = 0;
 let billItems = [];
+let html5QrcodeScanner = null;
 
 // Invoice Number Setup
 const invoiceNo = "INV-" + Date.now();
@@ -58,6 +64,7 @@ async function loadMedicines() {
                 value="${medicine.price}"
                 data-stock="${medicine.stock}"
                 data-id="${docSnap.id}"
+                data-barcode="${medicine.barcode || docSnap.id}"
                 data-name="${medicine.name}">
                 ${medicine.name}
             </option>
@@ -90,6 +97,83 @@ async function loadMedicines() {
 }
 
 loadMedicines();
+
+// -------------------------------------------------------------
+// Barcode Scanner Integration
+// -------------------------------------------------------------
+
+if (startScanBtn) {
+  startScanBtn.addEventListener("click", function () {
+    if (scannerModal) scannerModal.style.display = "flex";
+
+    html5QrcodeScanner = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+    html5QrcodeScanner
+      .start({ facingMode: "environment" }, config, onScanSuccess)
+      .catch((err) => {
+        alert("Camera access failed: " + err);
+        if (scannerModal) scannerModal.style.display = "none";
+      });
+  });
+}
+
+async function onScanSuccess(decodedText) {
+  if (html5QrcodeScanner) {
+    try {
+      await html5QrcodeScanner.stop();
+    } catch (e) {
+      console.warn("Scanner stopped:", e);
+    }
+  }
+  if (scannerModal) scannerModal.style.display = "none";
+
+  let matchedIndex = -1;
+
+  // Search matched medicine in dropdown by Barcode, Doc ID, or Name
+  for (let i = 0; i < medicineSelect.options.length; i++) {
+    const opt = medicineSelect.options[i];
+    const barcode = opt.getAttribute("data-barcode");
+    const docId = opt.getAttribute("data-id");
+    const name = opt.getAttribute("data-name");
+
+    if (barcode === decodedText || docId === decodedText || name === decodedText) {
+      matchedIndex = i;
+      break;
+    }
+  }
+
+  if (matchedIndex !== -1) {
+    medicineSelect.selectedIndex = matchedIndex;
+    const qtyInput = document.getElementById("qty");
+    if (qtyInput) {
+      qtyInput.value = 1;
+      qtyInput.focus();
+    }
+    alert(`Matched: ${medicineSelect.options[matchedIndex].text}`);
+  } else {
+    alert(`Medicine with Barcode/ID "${decodedText}" not found!`);
+  }
+}
+
+if (closeScanBtn) {
+  closeScanBtn.addEventListener("click", function () {
+    if (html5QrcodeScanner) {
+      html5QrcodeScanner
+        .stop()
+        .then(() => {
+          if (scannerModal) scannerModal.style.display = "none";
+        })
+        .catch(() => {
+          if (scannerModal) scannerModal.style.display = "none";
+        });
+    } else {
+      if (scannerModal) scannerModal.style.display = "none";
+    }
+  });
+}
+
+// -------------------------------------------------------------
 
 // 2. Add To Bill Handler
 if (addBillBtn) {
@@ -181,7 +265,6 @@ if (generateBillBtn) {
       const { name: customerName, phone: customerPhone } = getCustomerDetails();
 
       try {
-          // Disable button during saving to avoid double click
           generateBillBtn.disabled = true;
           generateBillBtn.innerText = "Saving Bill...";
 
@@ -201,7 +284,6 @@ if (generateBillBtn) {
 
           alert("Bill Generated & Saved Successfully! 🎉");
           
-          // Redirect to Customers page to see updated record
           window.location.href = "customers.html";
 
       } catch (err) {

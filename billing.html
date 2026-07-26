@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediTrack AI - Billing</title>
 
+    <!-- html5-qrcode Library Import -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
     <style>
         @media print {
             body * {
@@ -54,6 +57,11 @@
         <option value="">Select Medicine</option>
     </select>
 
+    <!-- Barcode Scan Button -->
+    <button id="startScanBtn" style="background-color: #28a745; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+      📷 Scan Barcode
+    </button>
+
     <input
         type="number"
         id="qty"
@@ -63,6 +71,17 @@
     <button id="addBillItem">
         Add To Bill
     </button>
+
+    <!-- Camera Video Stream Modal / Box -->
+    <div id="scannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; flex-direction: column;">
+      <div style="background: white; padding: 20px; border-radius: 10px; width: 320px; text-align: center;">
+        <h3>Scan Medicine Barcode</h3>
+        <div id="reader" style="width: 100%;"></div>
+        <button id="closeScanBtn" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; margin-top: 15px; border-radius: 6px; cursor: pointer;">
+          Close Camera
+        </button>
+      </div>
+    </div>
 
     <hr>
 

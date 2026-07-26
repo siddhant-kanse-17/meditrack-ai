@@ -27,30 +27,32 @@
         <h1>Medicines 💊</h1>
         <br>
 
-        <!-- Form with Month/Year Inputs -->
+        <!-- Form with Month/Year Inputs and Barcode Input -->
         <form id="medicineForm" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-            <input type="text" id="medName" placeholder="Medicine Name" required>
-            <input type="number" id="medPrice" placeholder="Price" required>
-            <input type="number" id="medStock" placeholder="Stock" required>
+            <input type="text" id="medBarcode" placeholder="Barcode / EAN Number" style="padding: 8px;">
+            <input type="text" id="medName" placeholder="Medicine Name" required style="padding: 8px;">
+            <input type="number" id="medPrice" placeholder="Price" required style="padding: 8px;">
+            <input type="number" id="medStock" placeholder="Stock" required style="padding: 8px;">
             
             <div style="display: flex; flex-direction: column;">
                 <label style="font-size: 12px; color: #666;">Mfg Date (MM/YYYY):</label>
-                <input type="month" id="medMfgDate">
+                <input type="month" id="medMfgDate" style="padding: 8px;">
             </div>
 
             <div style="display: flex; flex-direction: column;">
                 <label style="font-size: 12px; color: #666;">Exp Date (MM/YYYY):</label>
-                <input type="month" id="medExpDate" required>
+                <input type="month" id="medExpDate" required style="padding: 8px;">
             </div>
 
             <button type="submit" id="addMedBtn" style="align-self: flex-end; padding: 10px 20px;">Add Medicine</button>
         </form>
 
-        <input type="text" id="searchMedicine" placeholder="Search Medicine..." style="margin-bottom: 20px;">
+        <input type="text" id="searchMedicine" placeholder="Search Medicine..." style="margin-bottom: 20px; padding: 8px; width: 100%; max-width: 300px;">
 
         <table class="medicine-table">
             <thead>
                 <tr>
+                    <th>Barcode</th>
                     <th>Name</th>
                     <th>Price</th>
                     <th>Stock</th>
@@ -60,7 +62,7 @@
                 </tr>
             </thead>
             <tbody id="medicineTableBody">
-                <tr><td colspan="6">Loading medicines...</td></tr>
+                <tr><td colspan="7">Loading medicines...</td></tr>
             </tbody>
         </table>
 
