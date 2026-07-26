@@ -40,7 +40,7 @@ const formattedTime = now.toLocaleTimeString("en-IN", { hour: '2-digit', minute:
 if (document.getElementById("billDate")) document.getElementById("billDate").innerText = formattedDate;
 if (document.getElementById("billTime")) document.getElementById("billTime").innerText = formattedTime;
 
-// Load Medicines & Auto-select scanned item from Dashboard
+// Load Medicines
 async function loadMedicines() {
   if (!medicineSelect) return;
   medicineSelect.innerHTML = `<option value="">Select Medicine</option>`;
@@ -67,51 +67,10 @@ async function loadMedicines() {
           ${medicine.name} - ₹${medicine.price}
         </option>`;
     });
-
-    // AUTO-SELECT SCANNED MEDICINE FROM DASHBOARD / SCANNER
-    checkAndAutoSelectMedicine();
-
   } catch (err) {
     console.error("Error loading medicines:", err);
   }
 }
-
-function checkAndAutoSelectMedicine() {
-  const savedScanData = localStorage.getItem("selectedScanMedicine");
-  if (!savedScanData) return;
-
-  try {
-    const { barcode, name } = JSON.parse(savedScanData);
-    const searchCode = String(barcode || "").trim().toLowerCase();
-    const searchName = String(name || "").trim().toLowerCase();
-
-    let matchedIndex = -1;
-
-    for (let i = 0; i < medicineSelect.options.length; i++) {
-      const opt = medicineSelect.options[i];
-      const optBarcode = String(opt.getAttribute("data-barcode") || "").trim().toLowerCase();
-      const optName = String(opt.getAttribute("data-name") || "").trim().toLowerCase();
-
-      if ((searchCode && optBarcode === searchCode) || (searchName && optName === searchName)) {
-        matchedIndex = i;
-        break;
-      }
-    }
-
-    if (matchedIndex !== -1) {
-      medicineSelect.selectedIndex = matchedIndex;
-      const qtyInput = document.getElementById("qty");
-      if (qtyInput) qtyInput.value = 1;
-    }
-
-    // Clear after selecting so it doesn't auto-select on manual page refresh
-    localStorage.removeItem("selectedScanMedicine");
-
-  } catch(e) {
-    console.warn("Auto select error:", e);
-  }
-}
-
 loadMedicines();
 
 // --- SCANNER LOGIC WITH WORKING TAP ZOOM ---
