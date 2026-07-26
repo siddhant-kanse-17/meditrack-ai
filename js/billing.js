@@ -5,7 +5,8 @@ import {
   addDoc,
   doc,
   query,
-  where
+  where,
+  arrayUnion
 } from "firebase/firestore";
 import { db } from "./firebase.js";
 
@@ -33,11 +34,14 @@ if (document.getElementById("invoiceNo")) {
 
 // Date & Time Setup
 const now = new Date();
+const formattedDate = now.toLocaleDateString("en-IN");
+const formattedTime = now.toLocaleTimeString("en-IN");
+
 if (document.getElementById("billDate")) {
-  document.getElementById("billDate").innerText = now.toLocaleDateString("en-IN");
+  document.getElementById("billDate").innerText = formattedDate;
 }
 if (document.getElementById("billTime")) {
-  document.getElementById("billTime").innerText = now.toLocaleTimeString("en-IN");
+  document.getElementById("billTime").innerText = formattedTime;
 }
 
 /**
@@ -46,7 +50,7 @@ if (document.getElementById("billTime")) {
 function getCustomerDetails() {
   const nameEl = document.getElementById("customerName") || document.getElementById("custName") || document.getElementById("customerNameInput");
   const phoneEl = document.getElementById("customerPhone") || document.getElementById("custPhone") || document.getElementById("mobile") || document.getElementById("customerMobileInput");
-  
+
   return {
     name: nameEl ? nameEl.value.trim() : "",
     phone: phoneEl ? phoneEl.value.trim() : ""
@@ -54,17 +58,26 @@ function getCustomerDetails() {
 }
 
 /**
- * Combined Customer Sync Engine (Updates LocalStorage & Firestore Simultaneously)
+ * Combined Customer Sync Engine with Full Bill History Integration
  */
-async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount) {
+async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount, itemsList) {
   const cleanName = (customerName || "").trim();
   const cleanMobile = (mobileNumber || "").trim();
   const amountToIncrement = parseFloat(billTotalAmount) || 0;
-  const todayDate = new Date().toLocaleDateString("en-IN");
+  const todayDate = formattedDate;
 
   if (!cleanName || cleanName === "-" || !cleanMobile || cleanMobile === "N/A") {
     return;
   }
+
+  // Single Bill Object Structure for View Bill Modal
+  const currentBillRecord = {
+    invoiceNo: invoiceNo,
+    date: todayDate,
+    time: formattedTime,
+    grandTotal: amountToIncrement,
+    medicines: itemsList || []
+  };
 
   // 1. Sync LocalStorage
   try {
@@ -76,6 +89,11 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount)
       localCustomers[existingIndex].totalBills = (parseInt(localCustomers[existingIndex].totalBills) || 1) + 1;
       localCustomers[existingIndex].totalPurchase = (parseFloat(localCustomers[existingIndex].totalPurchase) || 0) + amountToIncrement;
       localCustomers[existingIndex].lastPurchase = todayDate;
+      
+      if (!localCustomers[existingIndex].bills) {
+        localCustomers[existingIndex].bills = [];
+      }
+      localCustomers[existingIndex].bills.push(currentBillRecord);
     } else {
       localCustomers.push({
         id: "CUST-" + Date.now(),
@@ -83,7 +101,8 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount)
         mobile: cleanMobile,
         totalBills: 1,
         totalPurchase: amountToIncrement,
-        lastPurchase: todayDate
+        lastPurchase: todayDate,
+        bills: [currentBillRecord]
       });
     }
     localStorage.setItem('customers', JSON.stringify(localCustomers));
@@ -106,7 +125,8 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount)
         totalBills: (parseInt(existingData.totalBills) || 1) + 1,
         totalPurchase: (parseFloat(existingData.totalPurchase) || 0) + amountToIncrement,
         lastPurchase: todayDate,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        bills: arrayUnion(currentBillRecord)
       });
     } else {
       await addDoc(customersRef, {
@@ -116,7 +136,8 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount)
         totalBills: 1,
         totalPurchase: amountToIncrement,
         lastPurchase: todayDate,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        bills: [currentBillRecord]
       });
     }
   } catch (err) {
@@ -124,7 +145,7 @@ async function saveOrUpdateCustomer(customerName, mobileNumber, billTotalAmount)
   }
 }
 
-// 1. Load Medicines & Auto-Select from Dashboard Search
+// 1. Load Medicines & Auto-Select
 async function loadMedicines() {
   if (!medicineSelect) return;
   medicineSelect.innerHTML = `<option value="">Select Medicine</option>`;
@@ -356,16 +377,16 @@ if (generateBillBtn) {
         items: billItems,
         grandTotal: totalAmount,
         total: totalAmount,
-        date: document.getElementById("billDate") ? document.getElementById("billDate").innerText : new Date().toLocaleDateString("en-IN"),
-        time: document.getElementById("billTime") ? document.getElementById("billTime").innerText : new Date().toLocaleTimeString("en-IN"),
+        date: formattedDate,
+        time: formattedTime,
         timestamp: new Date().toISOString()
       });
 
-      // Update LocalStorage and Firestore Customer sheet simultaneously
-      await saveOrUpdateCustomer(customerName, customerPhone, totalAmount);
+      // Update LocalStorage and Firestore Customer sheet simultaneously WITH bill items
+      await saveOrUpdateCustomer(customerName, customerPhone, totalAmount, billItems);
 
       alert("Bill Generated & Saved Successfully! 🎉");
-      
+
       window.location.href = "customers.html";
 
     } catch (err) {
