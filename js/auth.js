@@ -55,11 +55,15 @@ document.addEventListener("DOMContentLoaded", () => {
           loginBtn.innerText = "Login";
         }
 
-        // Show alert popup on mobile to catch exact error if any
+        // Show exact error message based on error code
         let msg = "Invalid Email or Password!";
         if (error.code === "auth/network-request-failed") {
           msg = "Network error. Please check your internet connection.";
-        } else if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
+        } else if (
+          error.code === "auth/invalid-credential" ||
+          error.code === "auth/wrong-password" ||
+          error.code === "auth/user-not-found"
+        ) {
           msg = "Incorrect Email or Password.";
         }
 
