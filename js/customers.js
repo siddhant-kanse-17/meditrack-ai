@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { collection, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
 
 // DOM Elements
 const customersTableBody = document.getElementById("customersTableBody") || document.querySelector("tbody");
@@ -215,9 +215,9 @@ function renderCustomersTable(customersList) {
 if (searchCustomerInput) searchCustomerInput.addEventListener("input", applySearchAndSort);
 if (sortSelect) sortSelect.addEventListener("change", applySearchAndSort);
 
-// 7. Delete Handler
+// 7. Delete Single Customer Handler
 window.deleteSingleCustomer = async function(mobile, name) {
-  if (!confirm(`⚠️ Kya aap "${name}" ka record delete karna chahte hain?`)) return;
+  if (!confirm(`⚠️ Are you sure you want to delete "${name}"?`)) return;
 
   try {
     let localCustomers = JSON.parse(localStorage.getItem('customers')) || [];
@@ -251,7 +251,7 @@ window.deleteSingleCustomer = async function(mobile, name) {
     });
 
     applySearchAndSort();
-    alert(`"${name}" deleted!`);
+    alert(`"${name}" deleted successfully!`);
 
   } catch (err) {
     console.error("Delete Error:", err);
@@ -259,6 +259,7 @@ window.deleteSingleCustomer = async function(mobile, name) {
   }
 };
 
+// Logout Handler
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async (e) => {
     e.preventDefault();
