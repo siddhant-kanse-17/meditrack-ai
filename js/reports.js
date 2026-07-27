@@ -8,14 +8,15 @@ const totalBatchesEl = document.getElementById("totalBatches");
 const expiryReportTable = document.getElementById("expiryReportTable");
 const todayReportDateEl = document.getElementById("todayReportDate");
 
-// Auth Guard & Core Loader
+// Instant Auth Guard & Core Loader
 onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        window.location.href = "index.html";
-    } else {
-        loadExpiryReports();
-        initDailySalesReport();
-    }
+  if (!user) {
+    window.location.replace("index.html");
+  } else {
+    document.documentElement.style.display = 'block';
+    loadExpiryReports();
+    initDailySalesReport();
+  }
 });
 
 const today = new Date();

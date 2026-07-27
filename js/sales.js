@@ -1,4 +1,5 @@
-import { db } from "./firebase-config.js";
+import { auth, db } from "./firebase-config.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   collection,
   getDocs,
@@ -14,6 +15,16 @@ const invoiceModal = document.getElementById("invoiceModal");
 const modalContent = document.getElementById("modalContent") || document.getElementById("invoiceDetails");
 
 let allSales = [];
+
+// Instant Auth Guard
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    window.location.replace("index.html");
+  } else {
+    document.documentElement.style.display = 'block';
+    loadSalesHistory();
+  }
+});
 
 /**
  * Fetch sales data from Firestore with LocalStorage fallback
@@ -212,6 +223,3 @@ if (searchSalesInput) {
     renderSalesTable(filtered);
   });
 }
-
-// Kickoff fetching logic on load
-document.addEventListener("DOMContentLoaded", loadSalesHistory);

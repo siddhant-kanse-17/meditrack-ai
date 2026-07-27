@@ -1,7 +1,12 @@
 {
-  "outputDirectory": ".",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/(.*)", "destination": "/$1" }
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/billing", "destination": "/billing.html" },
+    { "source": "/customers", "destination": "/customers.html" },
+    { "source": "/medicines", "destination": "/medicines.html" },
+    { "source": "/sales", "destination": "/sales.html" },
+    { "source": "/reports", "destination": "/reports.html" },
+    { "source": "/settings", "destination": "/settings.html" }
   ]
 }

@@ -13,11 +13,12 @@ let allCustomers = [];
 // Clean lock flag on load
 localStorage.removeItem('customersReset');
 
-// 1. Auth Guard Check
+// 1. Instant Auth Guard Check
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    window.location.href = "index.html";
+    window.location.replace("index.html");
   } else {
+    document.documentElement.style.display = 'block';
     loadCustomersData();
   }
 });

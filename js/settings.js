@@ -21,14 +21,15 @@ const saveProfileBtn = document.getElementById("saveProfileBtn");
 const saveSecurityBtn = document.getElementById("saveSecurityBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
-// 1. Auth Guard & Initial Data Load
+// 1. Instant Auth Guard & Initial Data Load
 onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        window.location.href = "index.html";
-    } else {
-        if (adminNameInput) adminNameInput.value = user.displayName || "";
-        if (newEmailInput) newEmailInput.value = user.email || "";
-    }
+  if (!user) {
+    window.location.replace("index.html");
+  } else {
+    document.documentElement.style.display = 'block';
+    if (adminNameInput) adminNameInput.value = user.displayName || "";
+    if (newEmailInput) newEmailInput.value = user.email || "";
+  }
 });
 
 // 2. Update Admin Name

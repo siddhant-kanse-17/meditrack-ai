@@ -2,259 +2,218 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const medForm = document.getElementById("medicineForm");
-const medBarcodeInput = document.getElementById("medBarcode");
-const medNameInput = document.getElementById("medName");
-const medPriceInput = document.getElementById("medPrice");
-const medStockInput = document.getElementById("medStock");
-const medMfgInput = document.getElementById("medMfgDate");
-const medExpInput = document.getElementById("medExpDate");
-const addMedBtn = document.getElementById("addMedBtn");
+// DOM Elements
+const medicineForm = document.getElementById("medicineForm");
+const barcodeInput = document.getElementById("medBarcode") || document.getElementById("barcode");
+const nameInput = document.getElementById("medName") || document.getElementById("name");
+const priceInput = document.getElementById("medPrice") || document.getElementById("price");
+const stockInput = document.getElementById("medStock") || document.getElementById("stock");
+const mfgInput = document.getElementById("medMfgDate") || document.getElementById("mfgDate");
+const expInput = document.getElementById("medExpDate") || document.getElementById("expiryDate");
+const medicineTable = document.getElementById("medicineTableBody") || document.getElementById("medicineTable");
 
-const searchInput = document.getElementById("searchMedicine");
-const medTableBody = document.getElementById("medicineTableBody");
+const scanBtn = document.getElementById("scanBarcodeBtn") || document.getElementById("scanBtn") || document.getElementById("startScanBtn");
+const scannerModal = document.getElementById("medScannerModal") || document.getElementById("scannerModal");
+const closeScanBtn = document.getElementById("closeMedScanBtn") || document.getElementById("closeScanBtn");
 
-let allMedicines = [];
-let editingMedId = null; // Tracks if we are editing an existing medicine
+let medicines = [];
+let html5QrCode = null;
 
-// Auth Guard
+// Instant Auth Guard
 onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        window.location.href = "index.html";
-    } else {
-        loadMedicines();
-    }
+  if (!user) {
+    window.location.replace("index.html");
+  } else {
+    document.documentElement.style.display = 'block';
+    loadMedicines();
+  }
 });
 
-// Helper Function: Formats YYYY-MM to MM/YYYY
-function formatMonthYear(val) {
-    if (!val) return 'N/A';
-    const parts = val.split("-");
-    if (parts.length === 2) {
-        return `${parts[1]}/${parts[0]}`;
-    }
-    return val;
-}
-
-// Load Medicines from Firestore
 async function loadMedicines() {
     try {
-        const querySnapshot = await getDocs(collection(db, "medicines"));
-        allMedicines = [];
-        medTableBody.innerHTML = "";
-
-        if (querySnapshot.empty) {
-            medTableBody.innerHTML = `<tr><td colspan="7">No medicines added yet.</td></tr>`;
-            return;
+        medicines = [];
+        try {
+            const querySnapshot = await getDocs(collection(db, "medicines"));
+            querySnapshot.forEach(docSnap => {
+                medicines.push({ id: docSnap.id, ...docSnap.data() });
+            });
+        } catch(e) {
+            console.warn("Firestore fetch error, fallback to local:", e);
         }
 
-        querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            allMedicines.push({ id: docSnap.id, ...data });
-        });
+        if (medicines.length === 0) {
+            medicines = JSON.parse(localStorage.getItem("medicines")) || [];
+        }
 
-        renderTable(allMedicines);
-
-    } catch (err) {
-        console.error("Error loading medicines:", err);
+        renderTable();
+    } catch(err) {
+        console.error("Load medicines error:", err);
     }
 }
 
-// Render Table Data
-function renderTable(medicinesList) {
-    medTableBody.innerHTML = "";
-    
-    medicinesList.forEach((med) => {
-        const tr = document.createElement("tr");
+function renderTable() {
+    if (!medicineTable) return;
+    medicineTable.innerHTML = "";
 
-        tr.innerHTML = `
-            <td><code>${med.barcode || 'N/A'}</code></td>
-            <td><b>${med.name}</b></td>
-            <td>₹${med.price}</td>
-            <td>${med.stock}</td>
-            <td>${formatMonthYear(med.mfgDate)}</td>
-            <td>${formatMonthYear(med.expiryDate)}</td>
-            <td style="display: flex; gap: 5px;">
-                <button class="edit-btn" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;" data-id="${med.id}">Edit</button>
-                <button class="delete-btn" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;" data-id="${med.id}">Delete</button>
+    medicines.forEach(m => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${m.barcode || '-'}</td>
+            <td><b>${m.name || 'N/A'}</b></td>
+            <td>₹${m.price || 0}</td>
+            <td>${m.stock !== undefined ? m.stock : (m.stockQty || 0)}</td>
+            <td>${m.mfgDate || '-'}</td>
+            <td>${m.expiryDate || m.expDate || '-'}</td>
+            <td>
+                <button class="delete-btn" data-id="${m.id}" style="background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Delete</button>
             </td>
         `;
-
-        medTableBody.appendChild(tr);
+        medicineTable.appendChild(row);
     });
 
-    // Edit Button Handlers (Autofills Form)
-    document.querySelectorAll(".edit-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-            const medId = e.target.getAttribute("data-id");
-            const medToEdit = allMedicines.find(m => m.id === medId);
-
-            if (!medToEdit) return;
-
-            // Fill input fields with existing values
-            if (medBarcodeInput) medBarcodeInput.value = medToEdit.barcode || "";
-            medNameInput.value = medToEdit.name || "";
-            medPriceInput.value = medToEdit.price || "";
-            medStockInput.value = medToEdit.stock || "";
-            medMfgInput.value = medToEdit.mfgDate || "";
-            medExpInput.value = medToEdit.expiryDate || "";
-
-            editingMedId = medId;
-            if (addMedBtn) {
-                addMedBtn.innerText = "Update Medicine";
-                addMedBtn.style.background = "#28a745";
-            }
-
-            // Scroll smoothly to top form
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-    });
-
-    // Delete Button Handlers
-    document.querySelectorAll(".delete-btn").forEach((btn) => {
-        btn.addEventListener("click", async (e) => {
-            const medId = e.target.getAttribute("data-id");
-            if (confirm("Are you sure you want to delete this medicine?")) {
-                await deleteDoc(doc(db, "medicines", medId));
-                loadMedicines();
-            }
-        });
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.onclick = () => deleteMedicine(btn.dataset.id);
     });
 }
 
-// Add or Update Medicine Handler
-medForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const medData = {
-        barcode: medBarcodeInput ? medBarcodeInput.value.trim() : "",
-        name: medNameInput.value.trim(),
-        price: Number(medPriceInput.value),
-        stock: Number(medStockInput.value),
-        mfgDate: medMfgInput.value || "",
-        expiryDate: medExpInput.value || "",
-        updatedAt: new Date().toISOString()
-    };
-
-    try {
-        if (editingMedId) {
-            // Update existing record
-            await updateDoc(doc(db, "medicines", editingMedId), medData);
-            editingMedId = null;
-            if (addMedBtn) {
-                addMedBtn.innerText = "Add Medicine";
-                addMedBtn.style.background = "#007bff";
-            }
-        } else {
-            // Add new record
-            medData.createdAt = new Date().toISOString();
-            await addDoc(collection(db, "medicines"), medData);
-        }
-
-        medForm.reset();
-        loadMedicines();
-
-    } catch (err) {
-        alert("Operation failed: " + err.message);
-    }
-});
-
-// Search Filter Handler (Supports Name & Barcode Search)
-if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
-        const term = e.target.value.toLowerCase();
-        const filtered = allMedicines.filter(m => 
-            (m.name && m.name.toLowerCase().includes(term)) || 
-            (m.barcode && m.barcode.toLowerCase().includes(term))
-        );
-        renderTable(filtered);
-    });
-}
-
-// -------------------------------------------------------------
-// Barcode Scanner & Live Auto-Fetch Integration
-// -------------------------------------------------------------
-
-let medScanner = null;
-const scanBtn = document.getElementById('scanBarcodeBtn');
-const closeBtn = document.getElementById('closeMedScanBtn');
-const modal = document.getElementById('medScannerModal');
-
-// 🌐 Public Database Auto-Fetch Function
-async function autoFetchPharmaDetails(barcode) {
-  try {
-    const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-    const data = await response.json();
-
-    if (data.status === 1 && data.product) {
-      const p = data.product;
-
-      // 1. Auto-fill Medicine Name
-      const fetchedName = p.product_name || p.product_name_en || p.generic_name || "";
-      if (fetchedName && medNameInput) {
-        medNameInput.value = fetchedName;
-      }
-
-      // 2. Auto-fill MRP/Price (agar public record me present ho)
-      if (p.price && medPriceInput) {
-        medPriceInput.value = p.price;
-      }
-    } else {
-      console.log("Barcode record not found in online DB, enter details manually.");
-      if (medNameInput) medNameInput.focus();
-    }
-  } catch (error) {
-    console.error("API Fetch Error:", error);
-    if (medNameInput) medNameInput.focus();
-  }
-}
-
-// 📷 Camera Trigger Event Listener
+// --- SCANNER & ZOOM LOGIC ---
 if (scanBtn) {
-  scanBtn.addEventListener('click', function () {
-    if (modal) modal.style.display = 'flex';
-    medScanner = new Html5Qrcode("med-reader");
+    scanBtn.addEventListener("click", () => {
+        const targetModal = document.getElementById("medScannerModal") || document.getElementById("scannerModal");
+        if (targetModal) targetModal.style.display = "flex";
 
-    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+        const readerId = document.getElementById("med-reader") ? "med-reader" : "reader";
 
-    medScanner.start(
-      { facingMode: "environment" },
-      config,
-      async (decodedText) => {
-        // 1. Scanned Barcode ID field me auto-paste
-        if (medBarcodeInput) {
-          medBarcodeInput.value = decodedText;
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode(readerId);
         }
 
-        // 2. Camera off
-        try {
-          await medScanner.stop();
-        } catch (e) {
-          console.warn("Scanner stop warning:", e);
-        }
-        if (modal) modal.style.display = 'none';
+        const config = { fps: 10, qrbox: { width: 220, height: 220 } };
 
-        // 3. Auto Fetch Medicine Info
-        await autoFetchPharmaDetails(decodedText);
-      }
-    ).catch(err => {
-      alert("Camera Permissions/Access Error: " + err);
-      if (modal) modal.style.display = 'none';
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+                stopScanner();
+                if (barcodeInput) barcodeInput.value = decodedText;
+                alert(`✅ Scanned Code: ${decodedText}`);
+            },
+            () => {}
+        ).then(() => {
+            setupZoomControls(readerId);
+        }).catch(err => {
+            console.error("Camera error:", err);
+            alert("Camera access required.");
+            stopScanner();
+        });
     });
-  });
 }
 
-// Camera Cancel Button Event
-if (closeBtn) {
-  closeBtn.addEventListener('click', function () {
-    if (medScanner) {
-      medScanner.stop().then(() => {
-        if (modal) modal.style.display = 'none';
-      }).catch(() => {
-        if (modal) modal.style.display = 'none';
-      });
-    } else {
-      if (modal) modal.style.display = 'none';
+function setupZoomControls(containerId) {
+    const z1 = document.getElementById("medZoom1x") || document.getElementById("zoom1xBtn");
+    const z2 = document.getElementById("medZoom2x") || document.getElementById("zoom2xBtn");
+    const container = document.getElementById(containerId);
+
+    if (!container) return;
+
+    // Reset initial zoom state
+    container.style.transition = "transform 0.2s ease-in-out";
+    container.style.transform = "scale(1)";
+
+    if (z1) {
+        z1.onclick = () => {
+            container.style.transform = "scale(1)";
+            applyHardwareZoom(1);
+        };
     }
-  });
+
+    if (z2) {
+        z2.onclick = () => {
+            container.style.transform = "scale(1.4)";
+            applyHardwareZoom(2);
+        };
+    }
+}
+
+function applyHardwareZoom(zoomVal) {
+    try {
+        if (html5QrCode) {
+            const track = html5QrCode.getRunningTrack();
+            const capabilities = track.getCapabilities();
+            if (capabilities && capabilities.zoom) {
+                track.applyConstraints({ advanced: [{ zoom: zoomVal }] });
+            }
+        }
+    } catch(e) {
+        console.warn("Hardware zoom unsupported, CSS scale active.");
+    }
+}
+
+if (closeScanBtn) {
+    closeScanBtn.addEventListener("click", stopScanner);
+}
+
+function stopScanner() {
+    const targetModal = document.getElementById("medScannerModal") || document.getElementById("scannerModal");
+    const readerId = document.getElementById("med-reader") ? "med-reader" : "reader";
+    const container = document.getElementById(readerId);
+
+    if (container) {
+        container.style.transform = "scale(1)";
+    }
+
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+            if (targetModal) targetModal.style.display = "none";
+        }).catch(() => {
+            if (targetModal) targetModal.style.display = "none";
+        });
+    } else {
+        if (targetModal) targetModal.style.display = "none";
+    }
+}
+
+// Add Medicine Form Handler
+if (medicineForm) {
+    medicineForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const newMed = {
+            barcode: barcodeInput ? barcodeInput.value.trim() : "",
+            name: nameInput ? nameInput.value.trim() : "",
+            price: priceInput ? parseFloat(priceInput.value) || 0 : 0,
+            stock: stockInput ? parseInt(stockInput.value, 10) || 0 : 0,
+            mfgDate: mfgInput ? mfgInput.value : "",
+            expiryDate: expInput ? expInput.value : ""
+        };
+
+        if (!newMed.name) return alert("Please enter medicine name!");
+
+        try {
+            await addDoc(collection(db, "medicines"), newMed);
+            alert("Medicine Added Successfully! 🎉");
+            medicineForm.reset();
+            loadMedicines();
+        } catch(err) {
+            console.warn("Firestore error, saving locally:", err);
+            medicines.push({ id: "LOCAL-" + Date.now(), ...newMed });
+            localStorage.setItem("medicines", JSON.stringify(medicines));
+            alert("Medicine Saved Locally!");
+            medicineForm.reset();
+            renderTable();
+        }
+    });
+}
+
+async function deleteMedicine(id) {
+    if (!confirm("Are you sure you want to delete this medicine?")) return;
+    try {
+        await deleteDoc(doc(db, "medicines", id));
+    } catch(e) {
+        console.warn("Local delete fallback");
+    }
+    medicines = medicines.filter(m => m.id !== id);
+    localStorage.setItem("medicines", JSON.stringify(medicines));
+    renderTable();
 }

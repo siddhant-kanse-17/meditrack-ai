@@ -22,11 +22,14 @@ const searchResultsDropdown = document.getElementById("searchResults");
 let medicinesList = [];
 let dashQrCode = null;
 
-// Auth Guard & Initial Loader
+// Instant Auth Guard & Initial Loader
 onAuthStateChanged(auth, (user) => {
     if (!user) {
-        window.location.href = "index.html";
+        window.location.replace("index.html");
     } else {
+        // Reveal the hidden document once verified
+        document.documentElement.style.display = 'block';
+
         const savedName = localStorage.getItem("adminName") || "Admin";
         if (adminNameEl) {
             adminNameEl.innerText = `Welcome ${savedName} 👋`;
@@ -185,27 +188,18 @@ function setupDashboardScanner() {
 function setupDashZoom() {
     const z1 = document.getElementById("dashZoom1x");
     const z2 = document.getElementById("dashZoom2x");
-
-    const doZoom = (scaleFactor) => {
-        const videoTrack = document.querySelector("#dash-reader video");
-        if (videoTrack) {
-            videoTrack.style.transition = "transform 0.2s ease-in-out";
-            videoTrack.style.transform = `scale(${scaleFactor})`;
-            videoTrack.style.transformOrigin = "center center";
-        }
-        applyHardwareZoom(scaleFactor);
-    };
+    const videoTrack = document.querySelector("#dash-reader video");
 
     if (z1) {
-        z1.onclick = (e) => {
-            e.stopPropagation();
-            doZoom(1);
+        z1.onclick = () => {
+            if (videoTrack) videoTrack.style.transform = "scale(1)";
+            applyHardwareZoom(1);
         };
     }
     if (z2) {
-        z2.onclick = (e) => {
-            e.stopPropagation();
-            doZoom(1.5);
+        z2.onclick = () => {
+            if (videoTrack) videoTrack.style.transform = "scale(1.5)";
+            applyHardwareZoom(2);
         };
     }
 }
@@ -215,7 +209,7 @@ function applyHardwareZoom(zoomVal) {
         if (dashQrCode) {
             const track = dashQrCode.getRunningTrack();
             const capabilities = track.getCapabilities();
-            if (capabilities && capabilities.zoom) {
+            if (capabilities.zoom) {
                 track.applyConstraints({ advanced: [{ zoom: zoomVal }] });
             }
         }
@@ -225,9 +219,6 @@ function applyHardwareZoom(zoomVal) {
 }
 
 function stopDashScanner() {
-    const videoTrack = document.querySelector("#dash-reader video");
-    if (videoTrack) videoTrack.style.transform = "scale(1)";
-
     if (dashQrCode) {
         dashQrCode.stop().then(() => {
             dashQrCode.clear();
@@ -267,19 +258,14 @@ function openMedicineModal(med) {
         if (priceEl) priceEl.innerText = med.price || "0";
         if (stockEl) stockEl.innerText = med.stock !== undefined ? med.stock : (med.stockQty || "0");
         if (mfgEl) mfgEl.innerText = med.mfgDate || "N/A";
-        if (expEl) expEl.innerText = med.expDate || med.expiryDate || med.exp || "N/A";
+        if (expEl) expEl.innerText = med.expiryDate || med.exp || "N/A";
 
         modal.style.display = "flex";
 
         const sellBtn = document.getElementById("sellMedBtn");
         if (sellBtn) {
             sellBtn.onclick = () => {
-                // Save selected medicine details for Billing Page auto-selection
-                localStorage.setItem("selectedScanMedicine", JSON.stringify({
-                    barcode: med.barcode || "",
-                    name: med.name || ""
-                }));
-                window.location.href = "billing.html";
+                window.location.href = `billing.html?med=${encodeURIComponent(med.name || "")}`;
             };
         }
     } else {

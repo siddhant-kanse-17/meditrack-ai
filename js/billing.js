@@ -22,10 +22,12 @@ let billItems = [];
 let medicinesList = [];
 let html5QrCode = null;
 
-// Auth Guard
+// Instant Auth Guard
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    window.location.href = "index.html";
+    window.location.replace("index.html");
+  } else {
+    document.documentElement.style.display = 'block';
   }
 });
 
