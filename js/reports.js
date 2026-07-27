@@ -132,3 +132,79 @@ function renderReportsUI() {
   if (expiredEl) expiredEl.innerText = expiredCount;
   if (expiringEl) expiringEl.innerText = expiringSoonCount;
 }
+// Load Date-Wise Sales History for the Modal Popup
+async function loadDailySalesHistory() {
+  const modalBody = document.getElementById("dailySalesModalBody");
+  if (!modalBody) return;
+
+  modalBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 15px;">Loading sales history...</td></tr>`;
+
+  try {
+    let billsList = [];
+
+    // 1. Try fetching bills from Firestore
+    try {
+      const querySnapshot = await getDocs(collection(db, "bills"));
+      querySnapshot.forEach((docSnap) => {
+        billsList.push(docSnap.data());
+      });
+    } catch (e) {
+      console.warn("Firestore bills fetch error, reading Local Storage backup:", e);
+    }
+
+    // 2. Fallback or merge with LocalStorage bills
+    const localBills = JSON.parse(localStorage.getItem("bills")) || [];
+    if (billsList.length === 0) {
+      billsList = localBills;
+    }
+
+    if (billsList.length === 0) {
+      modalBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 15px; color: #666;">No sales records found.</td></tr>`;
+      return;
+    }
+
+    // 3. Group bills by Date
+    const salesByDate = {};
+    billsList.forEach((bill) => {
+      // Bill date format check (e.g., DD/MM/YYYY or similar string)
+      const dateKey = bill.date || bill.billDate || "Unknown Date";
+      const totalAmount = parseFloat(bill.grandTotal || bill.total || 0);
+
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { count: 0, total: 0 };
+      }
+      salesByDate[dateKey].count += 1;
+      salesByDate[dateKey].total += totalAmount;
+    });
+
+    // 4. Render into Modal Table
+    modalBody.innerHTML = "";
+    const sortedDates = Object.keys(salesByDate).reverse(); // Latest dates first
+
+    sortedDates.forEach((dateStr) => {
+      const data = salesByDate[dateStr];
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid #eee";
+      tr.innerHTML = `
+        <td style="padding: 10px; font-weight: 500;">${dateStr}</td>
+        <td style="padding: 10px;">${data.count} Bills</td>
+        <td style="padding: 10px; color: #28a745; font-weight: bold;">₹${data.total.toFixed(2)}</td>
+      `;
+      modalBody.appendChild(tr);
+    });
+
+  } catch (err) {
+    console.error("Error loading sales history:", err);
+    modalBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 15px; color: #dc3545;">Failed to load sales.</td></tr>`;
+  }
+}
+
+// Trigger loading sales history when modal opens or page loads
+document.addEventListener("DOMContentLoaded", () => {
+  const cardBtn = document.getElementById("dailySalesBtnCard");
+  if (cardBtn) {
+    cardBtn.addEventListener("click", () => {
+      loadDailySalesHistory();
+    });
+  }
+});
