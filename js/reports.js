@@ -1,220 +1,125 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const expiredCountEl = document.getElementById("expiredCount");
-const expiringSoonCountEl = document.getElementById("expiringSoonCount");
-const totalBatchesEl = document.getElementById("totalBatches");
-const expiryReportTable = document.getElementById("expiryReportTable");
-const todayReportDateEl = document.getElementById("todayReportDate");
+// DOM Elements
+const totalBatchesEl = document.getElementById("totalBatches") || document.getElementById("totalMedicines");
+const expiredEl = document.getElementById("expiredCount");
+const expiringEl = document.getElementById("expiringCount");
+const expiryTableBody = document.getElementById("expiryTableBody") || document.getElementById("reportsTableBody");
 
-// Instant Auth Guard & Core Loader
+let medicinesList = [];
+
+// Instant Auth Guard
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.replace("index.html");
   } else {
     document.documentElement.style.display = 'block';
-    loadExpiryReports();
-    initDailySalesReport();
+    loadReportsData();
   }
 });
 
-const today = new Date();
-if (todayReportDateEl) {
-    todayReportDateEl.innerText = today.toLocaleDateString("en-IN");
-}
-
+// Helper Function: Format Month/Year display
 function formatMonthYear(val) {
-    if (!val) return 'N/A';
-    if (val.includes("-")) {
-        const parts = val.split("-");
-        if (parts.length === 2) return `${parts[1]}/${parts[0]}`;
-        if (parts.length === 3) return `${parts[1]}/${parts[0]}`;
-    }
-    return val;
+  if (!val) return 'N/A';
+  const parts = val.split("-");
+  if (parts.length === 2) {
+    return `${parts[1]}/${parts[0]}`;
+  }
+  return val;
 }
 
-/**
- * Load Inventory & Expiry Reports
- */
-async function loadExpiryReports() {
+// Load Fresh Stock Data & Sync Local Storage Backup
+async function loadReportsData() {
+  medicinesList = [];
+
+  try {
+    // 1. Fetch live updated data from Firestore
     try {
-        let medicinesList = [];
-
-        // 1. Fetch from Firestore
-        try {
-            const querySnapshot = await getDocs(collection(db, "medicines"));
-            querySnapshot.forEach(docSnap => {
-                medicinesList.push({ id: docSnap.id, ...docSnap.data() });
-            });
-        } catch(e) {
-            console.warn("Firestore fetch error, checking local storage:", e);
-        }
-
-        // 2. Fallback to LocalStorage
-        if (medicinesList.length === 0) {
-            medicinesList = JSON.parse(localStorage.getItem("medicines")) || [];
-        }
-
-        if (!expiryReportTable) return;
-        expiryReportTable.innerHTML = "";
-
-        if (medicinesList.length === 0) {
-            expiryReportTable.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">No medicine records found.</td></tr>`;
-            return;
-        }
-
-        let expiredCount = 0;
-        let expiringSoonCount = 0;
-        let totalItems = medicinesList.length;
-
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth() + 1;
-
-        medicinesList.forEach((med) => {
-            let statusBadge = `<span style="background: #28a745; color: white; padding: 4px 8px; border-radius: 4px;">Safe</span>`;
-
-            const expStr = med.expDate || med.expiryDate || med.exp || "";
-
-            if (expStr) {
-                let expYear = 0, expMonth = 0;
-                if (expStr.includes("-")) {
-                    const parts = expStr.split("-");
-                    expYear = parseInt(parts[0], 10);
-                    expMonth = parseInt(parts[1], 10);
-                } else if (expStr.includes("/")) {
-                    const parts = expStr.split("/");
-                    expMonth = parseInt(parts[0], 10);
-                    expYear = parseInt(parts[1], 10);
-                }
-
-                if (expYear > 0) {
-                    if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
-                        expiredCount++;
-                        statusBadge = `<span style="background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px;">Expired</span>`;
-                    } else if (expYear === currentYear && expMonth === currentMonth) {
-                        expiringSoonCount++;
-                        statusBadge = `<span style="background: #ffc107; color: black; padding: 4px 8px; border-radius: 4px;">Expiring Soon</span>`;
-                    }
-                }
-            }
-
-            const stockQty = Number(med.stock || med.stockQty || 0);
-            let stockDisplay = `${stockQty} pcs`;
-            if (stockQty <= 10) {
-                stockDisplay = `<span style="color: #dc3545; font-weight: bold; background: #ffe6e6; padding: 3px 8px; border-radius: 4px; border: 1px solid #ff4d4d;">⚠️ ${stockQty} pcs (Low Stock)</span>`;
-            }
-
-            expiryReportTable.innerHTML += `
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding:10px;"><b>${med.name || med.medicineName || "N/A"}</b></td>
-                    <td style="padding:10px;">${stockDisplay}</td>
-                    <td style="padding:10px;">${formatMonthYear(expStr)}</td>
-                    <td style="padding:10px;">${statusBadge}</td>
-                </tr>
-            `;
-        });
-
-        if (expiredCountEl) expiredCountEl.innerText = expiredCount;
-        if (expiringSoonCountEl) expiringSoonCountEl.innerText = expiringSoonCount;
-        if (totalBatchesEl) totalBatchesEl.innerText = totalItems;
-
-    } catch (err) {
-        console.error("Error loading expiry report:", err);
-        if (expiryReportTable) {
-            expiryReportTable.innerHTML = `<tr><td colspan="4" style="color: red; text-align: center;">Error loading reports data.</td></tr>`;
-        }
+      const querySnapshot = await getDocs(collection(db, "medicines"));
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        medicinesList.push({ id: docSnap.id, ...data });
+      });
+    } catch (e) {
+      console.warn("Firestore fetch error in Reports, reading Local Storage backup:", e);
     }
+
+    // 2. Read LocalStorage and prioritize latest deducted stock
+    const localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
+
+    if (medicinesList.length === 0) {
+      medicinesList = localMeds;
+    } else {
+      medicinesList = medicinesList.map((med) => {
+        const localMatch = localMeds.find((l) => l.id === med.id || l.name === med.name);
+        if (localMatch) {
+          const syncedStock = localMatch.stock !== undefined ? localMatch.stock : (localMatch.stockQty !== undefined ? localMatch.stockQty : med.stock);
+          return { ...med, stock: syncedStock, stockQty: syncedStock };
+        }
+        return med;
+      });
+    }
+
+    renderReportsUI();
+  } catch (err) {
+    console.error("Reports loading error:", err);
+  }
 }
 
-/**
- * Date-Wise Sales Report Modal
- */
-function initDailySalesReport() {
-    const cardBtn = document.getElementById('dailySalesBtnCard');
-    const modal = document.getElementById('salesReportModal');
-    const closeBtn = document.getElementById('closeReportModalBtn');
-    const modalBody = document.getElementById('dailySalesModalBody');
+// Render Reports UI Table and Metrics
+function renderReportsUI() {
+  if (totalBatchesEl) totalBatchesEl.innerText = medicinesList.length;
 
-    if (!cardBtn || !modal) return;
+  let expiredCount = 0;
+  let expiringSoonCount = 0;
 
-    cardBtn.addEventListener('click', async function () {
-        if (modalBody) {
-            modalBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:15px;">Loading sales...</td></tr>`;
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1; // 1-12
+
+  if (expiryTableBody) expiryTableBody.innerHTML = "";
+
+  medicinesList.forEach((med) => {
+    // Correct stock calculation priority (stock > stockQty)
+    const activeStock = med.stock !== undefined ? med.stock : (med.stockQty !== undefined ? med.stockQty : 0);
+
+    let status = "Safe";
+    let statusClass = "background: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold;";
+
+    // Expiry Check Logic
+    const expVal = med.expiryDate || med.expDate || "";
+    if (expVal) {
+      const parts = expVal.split("-");
+      if (parts.length === 2) {
+        const expYear = parseInt(parts[0], 10);
+        const expMonth = parseInt(parts[1], 10);
+
+        if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+          status = "Expired";
+          statusClass = "background: #dc3545; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold;";
+          expiredCount++;
+        } else if (expYear === currentYear && expMonth === currentMonth) {
+          status = "Expiring Soon";
+          statusClass = "background: #ffc107; color: black; padding: 3px 8px; border-radius: 4px; font-weight: bold;";
+          expiringSoonCount++;
         }
-        modal.style.display = 'flex';
-
-        let salesData = [];
-
-        try {
-            let querySnapshot;
-            try {
-                const salesQuery = query(collection(db, "sales"), orderBy("timestamp", "desc"));
-                querySnapshot = await getDocs(salesQuery);
-            } catch (indexErr) {
-                querySnapshot = await getDocs(collection(db, "sales"));
-            }
-
-            if (querySnapshot && !querySnapshot.empty) {
-                querySnapshot.forEach((docSnap) => {
-                    salesData.push({ id: docSnap.id, ...docSnap.data() });
-                });
-            }
-        } catch (e) {
-            console.warn("Firestore sales fetch failed:", e);
-        }
-
-        if (salesData.length === 0) {
-            salesData = JSON.parse(localStorage.getItem('sales')) || JSON.parse(localStorage.getItem('bills')) || [];
-        }
-
-        if (salesData.length === 0) {
-            if (modalBody) {
-                modalBody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 15px; color: #888;">No sales records found.</td></tr>`;
-            }
-            return;
-        }
-
-        const salesByDate = {};
-
-        salesData.forEach(sale => {
-            let dateKey = sale.date;
-
-            if (!dateKey && sale.timestamp?.seconds) {
-                dateKey = new Date(sale.timestamp.seconds * 1000).toLocaleDateString("en-IN");
-            } else if (!dateKey && sale.timestamp) {
-                dateKey = new Date(sale.timestamp).toLocaleDateString("en-IN");
-            }
-
-            if (!dateKey) dateKey = "Unknown Date";
-
-            const amount = parseFloat(sale.grandTotal || sale.total || 0);
-
-            if (!salesByDate[dateKey]) {
-                salesByDate[dateKey] = { totalSales: 0, totalOrders: 0 };
-            }
-
-            salesByDate[dateKey].totalSales += amount;
-            salesByDate[dateKey].totalOrders += 1;
-        });
-
-        if (modalBody) {
-            modalBody.innerHTML = Object.keys(salesByDate).map(date => {
-                const info = salesByDate[date];
-                return `
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 10px; font-weight: bold;">${date}</td>
-                        <td style="padding: 10px; text-align: center;">${info.totalOrders} Bills</td>
-                        <td style="padding: 10px; text-align: right; color: #28a745; font-weight: bold;">₹${info.totalSales.toFixed(2)}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-    });
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function () {
-            modal.style.display = 'none';
-        });
+      }
     }
+
+    if (expiryTableBody) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><b>${med.name || 'N/A'}</b></td>
+        <td>${activeStock} pcs</td>
+        <td>${formatMonthYear(expVal)}</td>
+        <td><span style="${statusClass}">${status}</span></td>
+      `;
+      expiryTableBody.appendChild(tr);
+    }
+  });
+
+  if (expiredEl) expiredEl.innerText = expiredCount;
+  if (expiringEl) expiringEl.innerText = expiringSoonCount;
 }
