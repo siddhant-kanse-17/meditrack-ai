@@ -42,7 +42,7 @@ const formattedTime = now.toLocaleTimeString("en-IN", { hour: '2-digit', minute:
 if (document.getElementById("billDate")) document.getElementById("billDate").innerText = formattedDate;
 if (document.getElementById("billTime")) document.getElementById("billTime").innerText = formattedTime;
 
-// Load Medicines & Auto-select scanned item
+// Load Medicines & Auto-select scanned/passed item
 async function loadMedicines() {
   if (!medicineSelect) return;
   medicineSelect.innerHTML = `<option value="">Select Medicine</option>`;
@@ -71,7 +71,7 @@ async function loadMedicines() {
         </option>`;
     });
 
-    // Auto-select scanned item if coming from Dashboard
+    // Check URL parameters and local storage for auto-selection
     checkAndAutoSelectMedicine();
 
   } catch (err) {
@@ -81,36 +81,47 @@ async function loadMedicines() {
 loadMedicines();
 
 function checkAndAutoSelectMedicine() {
+  // 1. Read URL Query Parameters (?med=siddhant or ?barcode=...)
+  const urlParams = new URLSearchParams(window.location.search);
+  const medFromUrl = urlParams.get('med') || urlParams.get('name');
+  const barcodeFromUrl = urlParams.get('barcode') || urlParams.get('code');
+
+  let searchName = medFromUrl ? medFromUrl.trim().toLowerCase() : "";
+  let searchCode = barcodeFromUrl ? barcodeFromUrl.trim().toLowerCase() : "";
+
+  // 2. Check LocalStorage fallback
   const savedScanData = localStorage.getItem("selectedScanMedicine");
-  if (!savedScanData) return;
-
-  try {
-    const { barcode, name } = JSON.parse(savedScanData);
-    const searchCode = String(barcode || "").trim().toLowerCase();
-    const searchName = String(name || "").trim().toLowerCase();
-
-    let matchedIndex = -1;
-
-    for (let i = 0; i < medicineSelect.options.length; i++) {
-      const opt = medicineSelect.options[i];
-      const optBarcode = String(opt.getAttribute("data-barcode") || "").trim().toLowerCase();
-      const optName = String(opt.getAttribute("data-name") || "").trim().toLowerCase();
-
-      if ((searchCode && optBarcode === searchCode) || (searchName && optName === searchName)) {
-        matchedIndex = i;
-        break;
-      }
+  if (savedScanData) {
+    try {
+      const { barcode, name } = JSON.parse(savedScanData);
+      if (name) searchName = name.trim().toLowerCase();
+      if (barcode) searchCode = barcode.trim().toLowerCase();
+      localStorage.removeItem("selectedScanMedicine");
+    } catch(e) {
+      console.warn("Auto select storage parse error:", e);
     }
+  }
 
-    if (matchedIndex !== -1) {
-      medicineSelect.selectedIndex = matchedIndex;
-      const qtyInput = document.getElementById("qty");
-      if (qtyInput) qtyInput.value = 1;
+  if (!searchName && !searchCode) return;
+
+  // 3. Search option list for match
+  let matchedIndex = -1;
+
+  for (let i = 0; i < medicineSelect.options.length; i++) {
+    const opt = medicineSelect.options[i];
+    const optBarcode = String(opt.getAttribute("data-barcode") || "").trim().toLowerCase();
+    const optName = String(opt.getAttribute("data-name") || "").trim().toLowerCase();
+
+    if ((searchCode && optBarcode === searchCode) || (searchName && optName === searchName)) {
+      matchedIndex = i;
+      break;
     }
+  }
 
-    localStorage.removeItem("selectedScanMedicine");
-  } catch(e) {
-    console.warn("Auto select error:", e);
+  if (matchedIndex !== -1) {
+    medicineSelect.selectedIndex = matchedIndex;
+    const qtyInput = document.getElementById("qty");
+    if (qtyInput) qtyInput.value = 1;
   }
 }
 
@@ -304,7 +315,6 @@ if (generateBillBtn) {
           localMeds[medIndex].stockQty = newStock;
         }
 
-        // Update in Firestore if ID exists
         if (item.id && !item.id.startsWith("LOCAL-")) {
           try {
             const medRef = doc(db, "medicines", item.id);
