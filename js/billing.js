@@ -92,7 +92,6 @@ async function loadMedicines() {
         </option>`;
     });
 
-    // Check URL parameters and local storage for auto-selection
     checkAndAutoSelectMedicine();
 
   } catch (err) {
@@ -102,7 +101,6 @@ async function loadMedicines() {
 loadMedicines();
 
 function checkAndAutoSelectMedicine() {
-  // 1. Read URL Query Parameters (?med=siddhant or ?barcode=...)
   const urlParams = new URLSearchParams(window.location.search);
   const medFromUrl = urlParams.get('med') || urlParams.get('name');
   const barcodeFromUrl = urlParams.get('barcode') || urlParams.get('code');
@@ -110,7 +108,6 @@ function checkAndAutoSelectMedicine() {
   let searchName = medFromUrl ? medFromUrl.trim().toLowerCase() : "";
   let searchCode = barcodeFromUrl ? barcodeFromUrl.trim().toLowerCase() : "";
 
-  // 2. Check LocalStorage fallback
   const savedScanData = localStorage.getItem("selectedScanMedicine");
   if (savedScanData) {
     try {
@@ -125,7 +122,6 @@ function checkAndAutoSelectMedicine() {
 
   if (!searchName && !searchCode) return;
 
-  // 3. Search option list for match
   let matchedIndex = -1;
 
   for (let i = 0; i < medicineSelect.options.length; i++) {
@@ -140,14 +136,14 @@ function checkAndAutoSelectMedicine() {
   }
 
   if (matchedIndex !== -1) {
-    playBeepSound(); // 🔊 Play Beep Sound on auto-selection!
+    playBeepSound();
     medicineSelect.selectedIndex = matchedIndex;
     const qtyInput = document.getElementById("qty");
     if (qtyInput) qtyInput.value = 1;
   }
 }
 
-// --- SCANNER LOGIC WITH WORKING TAP ZOOM ---
+// --- SCANNER LOGIC ---
 if (startScanBtn) {
   startScanBtn.addEventListener("click", () => {
     if (scannerModal) scannerModal.style.display = "flex";
@@ -252,7 +248,7 @@ function handleScannedBarcode(scannedText) {
   }
 
   if (foundIndex !== -1) {
-    playBeepSound(); // 🔊 Play scanner beep on barcode match
+    playBeepSound();
     medicineSelect.selectedIndex = foundIndex;
     const qtyInput = document.getElementById("qty");
     if (qtyInput) qtyInput.value = 1;
@@ -260,6 +256,42 @@ function handleScannedBarcode(scannedText) {
     alert(`⚠️ Barcode "${scannedText}" not found in list.`);
   }
 }
+
+// Render Bill Table Function (Includes Delete Button Column)
+function renderBillTable() {
+  if (!billTable) return;
+  billTable.innerHTML = "";
+  totalAmount = 0;
+
+  if (billItems.length === 0) {
+    billTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 15px;">No items added to bill yet.</td></tr>`;
+    if (grandTotal) grandTotal.innerText = `Grand Total: ₹0.00`;
+    return;
+  }
+
+  billItems.forEach((item, index) => {
+    totalAmount += item.total;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="padding: 10px;">${item.name}</td>
+      <td style="padding: 10px;">₹${item.price}</td>
+      <td style="padding: 10px;">${item.quantity}</td>
+      <td style="padding: 10px;">₹${item.total.toFixed(2)}</td>
+      <td style="padding: 10px; text-align: center;">
+        <button type="button" onclick="window.deleteBillItem(${index})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">🗑️ Delete</button>
+      </td>
+    `;
+    billTable.appendChild(tr);
+  });
+
+  if (grandTotal) grandTotal.innerText = `Grand Total: ₹${totalAmount.toFixed(2)}`;
+}
+
+// Global Delete Bill Item Function
+window.deleteBillItem = function(index) {
+  billItems.splice(index, 1);
+  renderBillTable();
+};
 
 // Add Item To Bill
 if (addBillBtn) {
@@ -278,7 +310,6 @@ if (addBillBtn) {
     if (qty > currentStock) return alert(`⚠️ Stock low! Available stock for ${medicineName} is only ${currentStock}.`);
 
     const total = price * qty;
-    totalAmount += total;
 
     billItems.push({ 
       id: medId, 
@@ -289,17 +320,8 @@ if (addBillBtn) {
       total: total 
     });
 
-    if (billTable) {
-      billTable.innerHTML += `
-        <tr>
-          <td>${medicineName}</td>
-          <td>₹${price}</td>
-          <td>${qty}</td>
-          <td>₹${total.toFixed(2)}</td>
-        </tr>`;
-    }
+    renderBillTable();
 
-    if (grandTotal) grandTotal.innerText = `Grand Total: ₹${totalAmount.toFixed(2)}`;
     medicineSelect.selectedIndex = 0;
     if (qtyInput) qtyInput.value = "";
   });
