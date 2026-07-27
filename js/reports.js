@@ -64,7 +64,6 @@ async function loadReportsData() {
 
 // Render Reports UI Table and Metrics
 function renderReportsUI() {
-  // Dynamic DOM selections to ensure elements exist with fallback support
   const totalBatchesEl = document.getElementById("totalBatches") || document.getElementById("totalMedicines");
   const expiredEl = document.getElementById("expiredCount");
   const expiringEl = document.getElementById("expiringSoonCount") || document.getElementById("expiringCount");
@@ -80,7 +79,7 @@ function renderReportsUI() {
   const currentMonth = currentDate.getMonth() + 1; // 1-12
 
   if (expiryTableBody) {
-    expiryTableBody.innerHTML = ""; // Remove "Loading reports..."
+    expiryTableBody.innerHTML = ""; 
   }
 
   if (medicinesList.length === 0) {
@@ -91,13 +90,11 @@ function renderReportsUI() {
   }
 
   medicinesList.forEach((med) => {
-    // Correct stock calculation priority
     const activeStock = med.stock !== undefined ? med.stock : (med.stockQty !== undefined ? med.stockQty : 0);
 
     let status = "Safe";
     let statusClass = "background: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold;";
 
-    // Expiry Check Logic
     const expVal = med.expiryDate || med.expDate || "";
     if (expVal) {
       const parts = expVal.split("-");
@@ -132,8 +129,9 @@ function renderReportsUI() {
   if (expiredEl) expiredEl.innerText = expiredCount;
   if (expiringEl) expiringEl.innerText = expiringSoonCount;
 }
-// Load Date-Wise Sales History for the Modal Popup
-async function loadDailySalesHistory() {
+
+// Load Date-Wise Sales History for the Modal Popup (Exposed to window)
+window.loadDailySalesHistory = async function() {
   const modalBody = document.getElementById("dailySalesModalBody");
   if (!modalBody) return;
 
@@ -166,7 +164,6 @@ async function loadDailySalesHistory() {
     // 3. Group bills by Date
     const salesByDate = {};
     billsList.forEach((bill) => {
-      // Bill date format check (e.g., DD/MM/YYYY or similar string)
       const dateKey = bill.date || bill.billDate || "Unknown Date";
       const totalAmount = parseFloat(bill.grandTotal || bill.total || 0);
 
@@ -197,14 +194,4 @@ async function loadDailySalesHistory() {
     console.error("Error loading sales history:", err);
     modalBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 15px; color: #dc3545;">Failed to load sales.</td></tr>`;
   }
-}
-
-// Trigger loading sales history when modal opens or page loads
-document.addEventListener("DOMContentLoaded", () => {
-  const cardBtn = document.getElementById("dailySalesBtnCard");
-  if (cardBtn) {
-    cardBtn.addEventListener("click", () => {
-      loadDailySalesHistory();
-    });
-  }
-});
+};

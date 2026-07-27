@@ -96,8 +96,8 @@
           <h2 id="totalBatches" style="margin: 5px 0 0 0; color: #333;">0</h2>
         </div>
 
-        <!-- Card 4 (Daily Sales History Card with Direct Click) -->
-        <div id="dailySalesBtnCard" onclick="document.getElementById('salesReportModal').style.display='flex'" class="report-card" style="border-left: 5px solid #17a2b8; cursor: pointer; background-color: #f8f9fa; display: flex; flex-direction: column; justify-content: center;">
+        <!-- Card 4 (Daily Sales History Card with Function Call) -->
+        <div id="dailySalesBtnCard" onclick="document.getElementById('salesReportModal').style.display='flex'; if(typeof loadDailySalesHistory === 'function') loadDailySalesHistory();" class="report-card" style="border-left: 5px solid #17a2b8; cursor: pointer; background-color: #f8f9fa; display: flex; flex-direction: column; justify-content: center;">
           <p style="margin: 0; color: #17a2b8; font-weight: bold; font-size: 13px;">📊 Daily Sales</p>
           <span style="margin: 5px 0 0 0; color: #17a2b8; font-size: 15px; font-weight: bold;">📅 View All Dates ➔</span>
         </div>
@@ -147,6 +147,6 @@
   </div>
 
   <!-- Forced Fresh Version Script Import -->
-  <script type="module" src="js/reports.js?v=100"></script>
+  <script type="module" src="js/reports.js?v=101"></script>
 </body>
 </html>
