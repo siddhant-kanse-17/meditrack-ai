@@ -3,23 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title">MediTrack AI - Billing</title>
+  <title>MediTrack AI - Billing</title>
   <link rel="stylesheet" href="css/style.css">
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     /* Hide until Auth check completes */
     html { display: none; }
     
-    /* Layout Structure for Sidebar Match */
+    /* Global Layout Fixes */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f9;
+    }
     .dashboard-container {
       display: flex;
       min-height: 100vh;
     }
     .main-content {
       flex: 1;
-      padding: 20px 30px;
-      background: #f4f6f9;
+      padding: 25px 30px;
       overflow-y: auto;
+    }
+    .page-header {
+      margin-bottom: 20px;
+    }
+    .page-header h2 {
+      margin: 0;
+      color: #333;
+      font-size: 24px;
     }
   </style>
 </head>
@@ -43,63 +56,68 @@
       </ul>
     </aside>
 
-    <!-- Main Billing Content -->
+    <!-- Main Content Area -->
     <main class="main-content">
-      <h2>MediTrack AI - Billing</h2>
+      <div class="page-header">
+        <h2>Billing & Invoice 💰</h2>
+      </div>
 
-      <fieldset style="border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; background: white;">
-        <legend><b>Customer Details</b></legend>
-        <input type="text" id="customerName" placeholder="Customer Name" style="padding: 6px; margin-right: 10px;">
-        <input type="text" id="customerPhone" placeholder="Mobile Number" style="padding: 6px;">
+      <!-- Customer Details Input -->
+      <fieldset style="border: 1px solid #e0e0e0; padding: 18px; margin-bottom: 20px; border-radius: 8px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <legend style="padding: 0 8px; font-weight: bold; color: #007bff;">Customer Details</legend>
+        <input type="text" id="customerName" placeholder="Customer Name" style="padding: 8px 12px; margin-right: 12px; border: 1px solid #ccc; border-radius: 4px; width: 220px;">
+        <input type="text" id="customerPhone" placeholder="Mobile Number" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; width: 220px;">
       </fieldset>
 
-      <fieldset style="border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; background: white;">
-        <legend><b>Medicine Billing</b></legend>
-        <select id="medicineSelect" style="padding: 8px; min-width: 250px;">
+      <!-- Medicine Billing Selector -->
+      <fieldset style="border: 1px solid #e0e0e0; padding: 18px; margin-bottom: 25px; border-radius: 8px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <legend style="padding: 0 8px; font-weight: bold; color: #007bff;">Medicine Billing</legend>
+        <select id="medicineSelect" style="padding: 9px; min-width: 260px; border: 1px solid #ccc; border-radius: 4px;">
           <option value="">Select Medicine</option>
         </select>
-        <button id="startScanBtn" style="background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; margin-left: 8px;">📷 Scan Barcode</button>
-        <input type="number" id="qty" placeholder="Quantity" value="1" min="1" style="width: 80px; padding: 8px; margin-left: 8px;">
-        <button id="addBillItem" style="background: #007bff; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; margin-left: 8px;">Add To Bill</button>
+        <button id="startScanBtn" style="background: #28a745; color: white; border: none; padding: 9px 16px; border-radius: 4px; cursor: pointer; margin-left: 10px; font-weight: 500;">📷 Scan Barcode</button>
+        <input type="number" id="qty" placeholder="Quantity" value="1" min="1" style="width: 80px; padding: 8px; margin-left: 10px; border: 1px solid #ccc; border-radius: 4px;">
+        <button id="addBillItem" style="background: #007bff; color: white; border: none; padding: 9px 16px; border-radius: 4px; cursor: pointer; margin-left: 10px; font-weight: 500;">Add To Bill</button>
       </fieldset>
 
       <!-- Printable Invoice Area -->
-      <div id="invoiceArea" style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <div id="invoiceArea" style="background: white; padding: 30px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="margin: 0;">MediTrack AI</h2>
-          <p style="margin: 5px 0; color: #666;">Medical Store Management System</p>
+          <h2 style="margin: 0; font-size: 22px; color: #111;">MediTrack AI</h2>
+          <p style="margin: 4px 0; color: #666; font-size: 14px;">Medical Store Management System</p>
         </div>
 
-        <p><b>Customer Bill</b></p>
-        <p style="margin: 2px 0;"><b>Invoice No :</b> <span id="invoiceNo"></span></p>
-        <p style="margin: 2px 0;"><b>Date :</b> <span id="billDate"></span></p>
-        <p style="margin: 2px 0;"><b>Time :</b> <span id="billTime"></span></p>
-        <p style="margin: 2px 0;"><b>Customer :</b> <span id="dispCustName">-</span></p>
-        <p style="margin: 2px 0;"><b>Mobile :</b> <span id="dispCustPhone">-</span></p>
+        <p style="margin: 0 0 10px 0; font-size: 16px;"><b>Customer Bill</b></p>
+        <p style="margin: 3px 0; font-size: 14px;"><b>Invoice No :</b> <span id="invoiceNo"></span></p>
+        <p style="margin: 3px 0; font-size: 14px;"><b>Date :</b> <span id="billDate"></span></p>
+        <p style="margin: 3px 0; font-size: 14px;"><b>Time :</b> <span id="billTime"></span></p>
+        <p style="margin: 3px 0; font-size: 14px;"><b>Customer :</b> <span id="dispCustName">-</span></p>
+        <p style="margin: 3px 0; font-size: 14px;"><b>Mobile :</b> <span id="dispCustPhone">-</span></p>
 
-        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
           <thead>
-            <tr style="background: #f1f1f1; border-bottom: 2px solid #ddd; text-align: left;">
-              <th style="padding: 10px;">Medicine</th>
-              <th style="padding: 10px;">Price</th>
-              <th style="padding: 10px;">Qty</th>
-              <th style="padding: 10px;">Total</th>
+            <tr style="background: #007bff; color: white; text-align: left;">
+              <th style="padding: 10px 12px;">Medicine</th>
+              <th style="padding: 10px 12px;">Price</th>
+              <th style="padding: 10px 12px;">Qty</th>
+              <th style="padding: 10px 12px;">Total</th>
             </tr>
           </thead>
           <tbody id="billTable"></tbody>
         </table>
 
-        <h3 id="grandTotal" style="margin-top: 20px; text-align: right; color: #007bff;">Grand Total: ₹0.00</h3>
+        <h3 id="grandTotal" style="margin-top: 25px; text-align: right; color: #007bff; font-size: 18px;">Grand Total: ₹0.00</h3>
 
-        <div style="text-align: center; margin-top: 30px; font-size: 14px; color: #555;">
-          <p>Thank You for Visiting!</p>
-          <p>Get Well Soon 😊</p>
+        <div style="text-align: center; margin-top: 35px; font-size: 14px; color: #555;">
+          <p style="margin: 2px 0;">Thank You for Visiting!</p>
+          <p style="margin: 2px 0;">Get Well Soon 😊</p>
         </div>
       </div>
 
-      <div style="margin-top: 20px;">
-        <button id="generateBill" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer;">Generate Bill</button>
-        <button id="printBill" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 10px;">Print Bill</button>
+      <!-- Actions -->
+      <div style="margin-top: 25px;">
+        <button id="generateBill" style="background: #28a745; color: white; border: none; padding: 11px 24px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 15px;">Generate Bill</button>
+        <button id="printBill" style="background: #17a2b8; color: white; border: none; padding: 11px 24px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 12px; font-size: 15px;">Print Bill</button>
       </div>
     </main>
 
