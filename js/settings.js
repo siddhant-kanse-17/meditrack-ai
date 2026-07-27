@@ -7,7 +7,7 @@ import {
     EmailAuthProvider, 
     reauthenticateWithCredential, 
     signOut 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const profileForm = document.getElementById("profileForm");
 const securityForm = document.getElementById("securityForm");
@@ -27,16 +27,24 @@ onAuthStateChanged(auth, (user) => {
     window.location.replace("index.html");
   } else {
     document.documentElement.style.display = 'block';
-    if (adminNameInput) adminNameInput.value = user.displayName || "";
+    
+    // Load Admin Name from localStorage or Firebase displayName
+    const currentAdminName = localStorage.getItem("adminName") || user.displayName || "";
+    if (adminNameInput) adminNameInput.value = currentAdminName;
     if (newEmailInput) newEmailInput.value = user.email || "";
   }
 });
 
-// 2. Update Admin Name
+// 2. Update Admin Name (Saves to both Firebase Profile and LocalStorage)
 if (profileForm) {
     profileForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const newName = adminNameInput.value.trim();
+
+        if (!newName) {
+            alert("Please enter a valid name.");
+            return;
+        }
 
         try {
             saveProfileBtn.disabled = true;
@@ -44,8 +52,12 @@ if (profileForm) {
 
             if (auth.currentUser) {
                 await updateProfile(auth.currentUser, { displayName: newName });
-                alert("Name updated successfully!");
             }
+            
+            // Save to localStorage so dashboard reads it instantly
+            localStorage.setItem("adminName", newName);
+
+            alert("Admin Name updated successfully! 🎉");
         } catch (err) {
             alert("Failed to update name: " + err.message);
         } finally {
@@ -55,7 +67,7 @@ if (profileForm) {
     });
 }
 
-// 3. Update Email / Password
+// 3. Update Email / Password securely
 if (securityForm) {
     securityForm.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -70,11 +82,16 @@ if (securityForm) {
             return;
         }
 
+        if (!newEmail && !newPassword) {
+            alert("Please enter either a new email or a new password.");
+            return;
+        }
+
         try {
             saveSecurityBtn.disabled = true;
             saveSecurityBtn.innerText = "Updating...";
 
-            // Re-authenticate
+            // Re-authenticate user before changing sensitive credentials
             const credential = EmailAuthProvider.credential(user.email, currentPassword);
             await reauthenticateWithCredential(user, credential);
 
@@ -84,13 +101,15 @@ if (securityForm) {
 
             if (newPassword) {
                 if (newPassword.length < 6) {
-                    alert("Password must be at least 6 characters.");
+                    alert("Password must be at least 6 characters long.");
+                    saveSecurityBtn.disabled = false;
+                    saveSecurityBtn.innerText = "Update Credentials";
                     return;
                 }
                 await updatePassword(user, newPassword);
             }
 
-            alert("Credentials updated successfully!");
+            alert("Credentials updated successfully! 🎉");
             currentPasswordInput.value = "";
             newPasswordInput.value = "";
 
@@ -113,37 +132,6 @@ if (logoutBtn) {
             window.location.href = "index.html";
         } catch (err) {
             console.error("Logout Error:", err);
-        }
-    });
-}
-
-// 5. Safe System Reset Logic
-const resetBtn = document.getElementById('resetDataBtn');
-if (resetBtn) {
-    resetBtn.addEventListener('click', function () {
-        // Confirmation Pop-up
-        const userConfirmed = window.confirm("⚠️ Do you want to reset the medicines, sales, and billing records?");
-
-        if (userConfirmed) {
-            // Target arrays remove from localStorage
-            const dataKeysToReset = [
-                'medicines',
-                'bills',
-                'sales',
-                'customers',
-                'reports',
-                'inventory'
-            ];
-
-            dataKeysToReset.forEach(key => {
-                localStorage.removeItem(key);
-            });
-
-            // Clear status alert
-            alert("Data reset ho gaya hai!");
-
-            // Redirect to dashboard to update UI
-            window.location.href = "dashboard.html";
         }
     });
 }
