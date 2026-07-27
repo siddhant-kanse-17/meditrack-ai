@@ -23,6 +23,27 @@ let allMedicines = [];
 let editingMedId = null;
 let html5QrCode = null;
 
+// 🔊 Audio Synthesizer Beep Sound Generator
+function playBeepSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime); // Crisp 1.2 kHz tone
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15); // 150ms beep duration
+    } catch (e) {
+        console.warn("Audio Context Beep failed:", e);
+    }
+}
+
 // Instant Auth Guard
 onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -238,71 +259,72 @@ if (searchInput) {
 
 // 🌐 Public Database Auto-Fetch Function
 async function autoFetchPharmaDetails(barcode) {
-  try {
-    const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-    const data = await response.json();
+    try {
+        const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+        const data = await response.json();
 
-    if (data.status === 1 && data.product) {
-      const p = data.product;
-      const fetchedName = p.product_name || p.product_name_en || p.generic_name || "";
-      if (fetchedName && medNameInput) {
-        medNameInput.value = fetchedName;
-      }
-      if (p.price && medPriceInput) {
-        medPriceInput.value = p.price;
-      }
-    } else {
-      if (medNameInput) medNameInput.focus();
+        if (data.status === 1 && data.product) {
+            const p = data.product;
+            const fetchedName = p.product_name || p.product_name_en || p.generic_name || "";
+            if (fetchedName && medNameInput) {
+                medNameInput.value = fetchedName;
+            }
+            if (p.price && medPriceInput) {
+                medPriceInput.value = p.price;
+            }
+        } else {
+            if (medNameInput) medNameInput.focus();
+        }
+    } catch (error) {
+        console.error("API Fetch Error:", error);
+        if (medNameInput) medNameInput.focus();
     }
-  } catch (error) {
-    console.error("API Fetch Error:", error);
-    if (medNameInput) medNameInput.focus();
-  }
 }
 
 // Camera Scanner Implementation
 if (scanBtn) {
-  scanBtn.addEventListener('click', function () {
-    const targetModal = document.getElementById("medScannerModal") || document.getElementById("scannerModal");
-    if (targetModal) targetModal.style.display = 'flex';
+    scanBtn.addEventListener('click', function () {
+        const targetModal = document.getElementById("medScannerModal") || document.getElementById("scannerModal");
+        if (targetModal) targetModal.style.display = 'flex';
 
-    const readerId = document.getElementById("med-reader") ? "med-reader" : "reader";
-    html5QrCode = new Html5Qrcode(readerId);
+        const readerId = document.getElementById("med-reader") ? "med-reader" : "reader";
+        html5QrCode = new Html5Qrcode(readerId);
 
-    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+        const config = { fps: 10, qrbox: { width: 220, height: 220 } };
 
-    html5QrCode.start(
-      { facingMode: "environment" },
-      config,
-      async (decodedText) => {
-        if (medBarcodeInput) {
-          medBarcodeInput.value = decodedText;
-        }
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            async (decodedText) => {
+                if (medBarcodeInput) {
+                    medBarcodeInput.value = decodedText;
+                }
 
-        stopScanner();
-        await autoFetchPharmaDetails(decodedText);
-      }
-    ).catch(err => {
-      alert("Camera Permission Error: " + err);
-      stopScanner();
+                playBeepSound(); // 🔊 Sound feedback on successful scan!
+                stopScanner();
+                await autoFetchPharmaDetails(decodedText);
+            }
+        ).catch(err => {
+            alert("Camera Permission Error: " + err);
+            stopScanner();
+        });
     });
-  });
 }
 
 if (closeBtn) {
-  closeBtn.addEventListener('click', stopScanner);
+    closeBtn.addEventListener('click', stopScanner);
 }
 
 function stopScanner() {
-  const targetModal = document.getElementById("medScannerModal") || document.getElementById("scannerModal");
-  if (html5QrCode) {
-    html5QrCode.stop().then(() => {
-      html5QrCode.clear();
-      if (targetModal) targetModal.style.display = 'none';
-    }).catch(() => {
-      if (targetModal) targetModal.style.display = 'none';
-    });
-  } else {
-    if (targetModal) targetModal.style.display = 'none';
-  }
+    const targetModal = document.getElementById("medScannerModal") || document.getElementById("scannerModal");
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+            if (targetModal) targetModal.style.display = 'none';
+        }).catch(() => {
+            if (targetModal) targetModal.style.display = 'none';
+        });
+    } else {
+        if (targetModal) targetModal.style.display = 'none';
+    }
 }

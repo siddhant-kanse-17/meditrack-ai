@@ -22,6 +22,27 @@ let billItems = [];
 let medicinesList = [];
 let html5QrCode = null;
 
+// Scanner Beep Sound Function (Web Audio API)
+function playBeepSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // High pitch scanner beep
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.12); // Short 120ms beep
+  } catch (e) {
+    console.warn("Audio play warning:", e);
+  }
+}
+
 // Instant Auth Guard
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -230,10 +251,10 @@ function handleScannedBarcode(scannedText) {
   }
 
   if (foundIndex !== -1) {
+    playBeepSound(); // 🔊 Play scanner beep on match
     medicineSelect.selectedIndex = foundIndex;
     const qtyInput = document.getElementById("qty");
     if (qtyInput) qtyInput.value = 1;
-    alert(`✅ Scanned & Selected: ${medicineSelect.options[foundIndex].getAttribute("data-name")}`);
   } else {
     alert(`⚠️ Barcode "${scannedText}" not found in list.`);
   }
@@ -307,18 +328,20 @@ if (generateBillBtn) {
       let localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
 
       for (let item of billItems) {
+        let calculatedNewStock = 0;
+
         const medIndex = localMeds.findIndex(m => m.name === item.name || m.id === item.id);
         if (medIndex !== -1) {
           const currentMedStock = localMeds[medIndex].stock !== undefined ? localMeds[medIndex].stock : (localMeds[medIndex].stockQty || 0);
-          const newStock = Math.max(0, currentMedStock - item.quantity);
-          localMeds[medIndex].stock = newStock;
-          localMeds[medIndex].stockQty = newStock;
+          calculatedNewStock = Math.max(0, currentMedStock - item.quantity);
+          localMeds[medIndex].stock = calculatedNewStock;
+          localMeds[medIndex].stockQty = calculatedNewStock;
         }
 
         if (item.id && !item.id.startsWith("LOCAL-")) {
           try {
             const medRef = doc(db, "medicines", item.id);
-            await updateDoc(medRef, { stock: newStock, stockQty: newStock });
+            await updateDoc(medRef, { stock: calculatedNewStock, stockQty: calculatedNewStock });
           } catch(e) {
             console.warn("Firestore stock update failed for", item.name, e);
           }
