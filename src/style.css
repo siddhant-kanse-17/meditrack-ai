@@ -9,7 +9,6 @@ body {
     min-height: 100vh;
 }
 
-/* Unified Professional Sidebar Styling */
 .sidebar {
     width: 240px !important;
     min-width: 240px !important;
@@ -21,6 +20,8 @@ body {
     flex-direction: column !important;
     flex-shrink: 0 !important;
     color: white !important;
+    border-right: none !important; /* 👈 Yeh line add karni hai */
+    box-shadow: none !important;   /* 👈 Shadow/border hatane ke liye */
 }
 
 .sidebar .logo h2 {
