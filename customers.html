@@ -9,12 +9,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediTrack-AI | Customers</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+      /* Global Layout Consistency */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f4f7fc;
+      }
+      .dashboard-container {
+        display: flex;
+        min-height: 100vh;
+      }
+      .main-content {
+        flex: 1;
+        padding: 35px;
+        overflow-y: auto;
+      }
+    </style>
 </head>
 <body>
 
-<div class="dashboard">
+<div class="dashboard-container">
 
-   <!-- Sidebar Navigation -->
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="logo">
         <h2>💊 MediTrack-AI</h2>
@@ -22,23 +40,23 @@
       <ul class="nav-links">
         <li><a href="/dashboard">🏠 <span>Dashboard</span></a></li>
         <li><a href="/medicines">💊 <span>Medicines</span></a></li>
-        <li class="active"><a href="/billing">💰 <span>Billing</span></a></li>
-        <li><a href="/customers">👥 <span>Customers</span></a></li>
+        <li><a href="/billing">💰 <span>Billing</span></a></li>
+        <li class="active"><a href="/customers">👥 <span>Customers</span></a></li>
         <li><a href="/reports">📊 <span>Reports</span></a></li>
         <li><a href="/settings">⚙️ <span>Settings</span></a></li>
         <li><a href="#" id="logoutBtn">🚪 <span>Logout</span></a></li>
       </ul>
     </aside>
 
-    <main class="content">
+    <main class="main-content">
         <!-- Top Header (Cleaned) -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1 style="margin: 0;">Customers 👥</h1>
         </div>
 
         <!-- Search & Sort Controls -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <input type="text" id="searchCustomerInput" placeholder="Search by Name or Mobile" style="padding: 10px; width: 300px; border: 1px solid #ccc; border-radius: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <input type="text" id="searchCustomerInput" placeholder="🔍 Search by Name or Mobile" style="padding: 10px; width: 300px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
 
             <select id="sortCustomersSelect" style="padding: 10px; border: 1px solid #007bff; border-radius: 6px; background-color: #f8f9fa; cursor: pointer; font-weight: 500;">
                 <option value="recent">📅 Sort: Recent Purchase</option>
@@ -48,7 +66,7 @@
             </select>
         </div>
 
-        <table class="medicine-table" style="width: 100%; border-collapse: collapse;">
+        <table class="medicine-table" style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             <thead>
                 <tr>
                     <th>Name</th>
@@ -68,7 +86,7 @@
 
 </div>
 
-<script type="module" src="js/customers.js?v=2"></script>
+<script type="module" src="js/customers.js?v=3"></script>
 
 </body>
 </html>

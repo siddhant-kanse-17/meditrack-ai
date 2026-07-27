@@ -2,17 +2,35 @@
 <html lang="en">
 <head>
     <script>
-      // Auth verification hone tak page ko render nahi hone dena
+      // Auth verification hone तक page को render nahi hone dena
       document.documentElement.style.display = 'none';
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediTrack-AI | Settings</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+      /* Global Layout Consistency */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f4f7fc;
+      }
+      .dashboard-container {
+        display: flex;
+        min-height: 100vh;
+      }
+      .main-content {
+        flex: 1;
+        padding: 35px;
+        overflow-y: auto;
+      }
+    </style>
 </head>
 <body>
 
-<div class="dashboard">
+<div class="dashboard-container">
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
@@ -22,59 +40,59 @@
       <ul class="nav-links">
         <li><a href="/dashboard">🏠 <span>Dashboard</span></a></li>
         <li><a href="/medicines">💊 <span>Medicines</span></a></li>
-        <li class="active"><a href="/billing">💰 <span>Billing</span></a></li>
+        <li><a href="/billing">💰 <span>Billing</span></a></li>
         <li><a href="/customers">👥 <span>Customers</span></a></li>
         <li><a href="/reports">📊 <span>Reports</span></a></li>
-        <li><a href="/settings">⚙️ <span>Settings</span></a></li>
+        <li class="active"><a href="/settings">⚙️ <span>Settings</span></a></li>
         <li><a href="#" id="logoutBtn">🚪 <span>Logout</span></a></li>
       </ul>
     </aside>
 
-    <main class="content">
-        <h1>Admin Settings ⚙</h1>
+    <main class="main-content">
+        <h1 style="margin-top: 0;">Admin Settings ⚙</h1>
         <br>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
 
             <!-- Profile Name Card -->
-            <div class="card" style="flex: 1; min-width: 320px;">
-                <h3>👤 Profile Settings</h3>
+            <div class="card" style="flex: 1; min-width: 320px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin-top: 0;">👤 Profile Settings</h3>
                 <br>
                 <form id="profileForm">
                     <label><b>Admin Name:</b></label>
-                    <input type="text" id="adminNameInput" placeholder="Enter Your Name" required>
+                    <input type="text" id="adminNameInput" placeholder="Enter Your Name" required style="width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;">
                     
-                    <button type="submit" id="saveProfileBtn" style="margin-top: 15px;">Save Name</button>
+                    <button type="submit" id="saveProfileBtn" style="margin-top: 15px; width: auto; padding: 10px 20px; font-weight: bold;">Save Name</button>
                 </form>
             </div>
 
             <!-- Security Card -->
-            <div class="card" style="flex: 1; min-width: 320px;">
-                <h3>🔒 Security Settings</h3>
+            <div class="card" style="flex: 1; min-width: 320px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin-top: 0;">🔒 Security Settings</h3>
                 <br>
                 <form id="securityForm">
                     <label><b>Current Password (Required):</b></label>
-                    <input type="password" id="currentPassword" placeholder="Enter Current Password" required>
+                    <input type="password" id="currentPassword" placeholder="Enter Current Password" required style="width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;">
 
                     <br><br>
                     <label><b>New Email:</b></label>
-                    <input type="email" id="newEmail" placeholder="New Email Address">
+                    <input type="email" id="newEmail" placeholder="New Email Address" style="width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;">
 
                     <br><br>
                     <label><b>New Password:</b></label>
-                    <input type="password" id="newPassword" placeholder="New Password (min 6 chars)">
+                    <input type="password" id="newPassword" placeholder="New Password (min 6 chars)" style="width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;">
 
-                    <button type="submit" id="saveSecurityBtn" style="margin-top: 15px;">Update Credentials</button>
+                    <button type="submit" id="saveSecurityBtn" style="margin-top: 15px; width: auto; padding: 10px 20px; font-weight: bold;">Update Credentials</button>
                 </form>
             </div>
 
         </div>
 
         <!-- Data Reset Section (Danger Zone) -->
-        <div style="background-color: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ffcdd2; margin-top: 20px;">
+        <div style="background-color: #fff; padding: 25px; border-radius: 8px; border: 1px solid #ffcdd2; margin-top: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
             <h3 style="color: #d32f2f; margin-top: 0;">⚠️ Danger Zone</h3>
             <p style="color: #666; font-size: 14px;">Medicines, Billing Records, Sales History, aur Customers data clear karein. (System Auth & Admin Settings safe rahenge)</p>
-            <button id="resetDataBtn" style="background-color: #dc3545; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+            <button id="resetDataBtn" style="background-color: #dc3545; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; width: auto;">
                 🗑️ Reset System Data
             </button>
         </div>

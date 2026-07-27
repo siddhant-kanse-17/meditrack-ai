@@ -12,6 +12,17 @@
   <!-- Font Awesome CDN for icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    /* Global Layout Consistency */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f7fc;
+    }
+    .dashboard-container {
+      display: flex;
+      min-height: 100vh;
+    }
     .reports-cards-container {
       display: flex;
       gap: 15px;
@@ -41,9 +52,9 @@
   </style>
 </head>
 <body>
-  <div class="dashboard">
+  <div class="dashboard-container">
     
-   <!-- Sidebar Navigation -->
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="logo">
         <h2>💊 MediTrack-AI</h2>
@@ -51,17 +62,17 @@
       <ul class="nav-links">
         <li><a href="/dashboard">🏠 <span>Dashboard</span></a></li>
         <li><a href="/medicines">💊 <span>Medicines</span></a></li>
-        <li class="active"><a href="/billing">💰 <span>Billing</span></a></li>
+        <li><a href="/billing">💰 <span>Billing</span></a></li>
         <li><a href="/customers">👥 <span>Customers</span></a></li>
-        <li><a href="/reports">📊 <span>Reports</span></a></li>
+        <li class="active"><a href="/reports">📊 <span>Reports</span></a></li>
         <li><a href="/settings">⚙️ <span>Settings</span></a></li>
         <li><a href="#" id="logoutBtn">🚪 <span>Logout</span></a></li>
       </ul>
     </aside>
 
     <!-- Main Content -->
-    <main class="content" style="flex: 1; padding: 25px;">
-      <h2 style="text-align: center; margin-bottom: 5px;">Inventory & Expiry Reports 📊</h2>
+    <main class="content" style="flex: 1; padding: 35px; overflow-y: auto;">
+      <h2 style="margin-top: 0; margin-bottom: 5px;">Inventory & Expiry Reports 📊</h2>
       <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Report Date: <strong id="todayReportDate">26/7/2026</strong></p>
 
       <!-- 4 Cards Grid Container -->
@@ -94,18 +105,18 @@
       </div>
 
       <!-- Expiry Alert Table Area -->
-      <h3>⚠️ Expiry Alert List</h3>
-      <table border="1" style="width: 100%; border-collapse: collapse; text-align: left; background: white;">
+      <h3 style="margin-top: 25px;">⚠️ Expiry Alert List</h3>
+      <table border="1" style="width: 100%; border-collapse: collapse; text-align: left; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
         <thead>
-          <tr style="background: #0069d9; color: white;">
-            <th style="padding: 10px;">Medicine Name</th>
-            <th style="padding: 10px;">Stock Qty</th>
-            <th style="padding: 10px;">Expiry Date</th>
-            <th style="padding: 10px;">Status</th>
+          <tr style="background: #0d6efd; color: white;">
+            <th style="padding: 12px;">Medicine Name</th>
+            <th style="padding: 12px;">Stock Qty</th>
+            <th style="padding: 12px;">Expiry Date</th>
+            <th style="padding: 12px;">Status</th>
           </tr>
         </thead>
         <tbody id="expiryReportTable">
-          <tr><td colspan="4" style="text-align: center; padding:20px;">Loading reports...</td></tr>
+          <tr><td colspan="4" style="text-align: center; padding: 20px;">Loading reports...</td></tr>
         </tbody>
       </table>
 
@@ -117,7 +128,7 @@
     <div style="background: white; padding: 25px; border-radius: 12px; width: 420px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
         <h3 style="margin: 0;">📅 Date-Wise Sales History</h3>
-        <button id="closeReportModalBtn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✕ Close</button>
+        <button id="closeReportModalBtn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; width: auto;">✕ Close</button>
       </div>
 
       <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -136,6 +147,6 @@
   </div>
 
   <!-- Forced Fresh Version Script Import -->
-  <script type="module" src="js/reports.js?v=99"></script>
+  <script type="module" src="js/reports.js?v=100"></script>
 </body>
 </html>
