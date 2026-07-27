@@ -60,12 +60,12 @@
         <h2>💊 MediTrack-AI</h2>
       </div>
       <ul class="nav-links">
-        <li><a href="/dashboard">🏠 <span>Dashboard</span></a></li>
-        <li><a href="/medicines">💊 <span>Medicines</span></a></li>
-        <li><a href="/billing">💰 <span>Billing</span></a></li>
-        <li><a href="/customers">👥 <span>Customers</span></a></li>
-        <li class="active"><a href="/reports">📊 <span>Reports</span></a></li>
-        <li><a href="/settings">⚙️ <span>Settings</span></a></li>
+        <li><a href="dashboard.html">🏠 <span>Dashboard</span></a></li>
+        <li><a href="medicines.html">💊 <span>Medicines</span></a></li>
+        <li><a href="billing.html">💰 <span>Billing</span></a></li>
+        <li><a href="customers.html">👥 <span>Customers</span></a></li>
+        <li class="active"><a href="reports.html">📊 <span>Reports</span></a></li>
+        <li><a href="settings.html">⚙️ <span>Settings</span></a></li>
         <li><a href="#" id="logoutBtn">🚪 <span>Logout</span></a></li>
       </ul>
     </aside>
@@ -96,8 +96,8 @@
           <h2 id="totalBatches" style="margin: 5px 0 0 0; color: #333;">0</h2>
         </div>
 
-        <!-- Card 4 (Daily Sales History Card Fixed) -->
-        <div id="dailySalesBtnCard" class="report-card" style="border-left: 5px solid #17a2b8; cursor: pointer; background-color: #f8f9fa; display: flex; flex-direction: column; justify-content: center;">
+        <!-- Card 4 (Daily Sales History Card with Direct Click) -->
+        <div id="dailySalesBtnCard" onclick="document.getElementById('salesReportModal').style.display='flex'" class="report-card" style="border-left: 5px solid #17a2b8; cursor: pointer; background-color: #f8f9fa; display: flex; flex-direction: column; justify-content: center;">
           <p style="margin: 0; color: #17a2b8; font-weight: bold; font-size: 13px;">📊 Daily Sales</p>
           <span style="margin: 5px 0 0 0; color: #17a2b8; font-size: 15px; font-weight: bold;">📅 View All Dates ➔</span>
         </div>
@@ -128,7 +128,7 @@
     <div style="background: white; padding: 25px; border-radius: 12px; width: 420px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
         <h3 style="margin: 0;">📅 Date-Wise Sales History</h3>
-        <button id="closeReportModalBtn" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; width: auto;">✕ Close</button>
+        <button id="closeReportModalBtn" onclick="document.getElementById('salesReportModal').style.display='none'" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; width: auto;">✕ Close</button>
       </div>
 
       <table style="width: 100%; border-collapse: collapse; text-align: left;">
