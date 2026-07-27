@@ -12,11 +12,29 @@
 
     <!-- Html5-QRCode CDN Script -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+      /* Global Layout Consistency */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f4f7fc;
+      }
+      .dashboard-container {
+        display: flex;
+        min-height: 100vh;
+      }
+      .main-content {
+        flex: 1;
+        padding: 35px;
+        overflow-y: auto;
+      }
+    </style>
 </head>
 
 <body>
 
-<div class="dashboard">
+<div class="dashboard-container">
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
@@ -34,14 +52,14 @@
       </ul>
     </aside>
 
-    <main class="content">
+    <main class="main-content">
 
         <!-- Top Header with Scan Button -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1 style="margin: 0;">Welcome Admin 👋</h1>
 
             <!-- Top Right Corner Button -->
-            <button id="dashScanBtn" style="background-color: #28a745; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+            <button id="dashScanBtn" style="background-color: #28a745; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; width: auto;">
                 📷 Scan to Search
             </button>
         </div>
@@ -54,11 +72,11 @@
             
             <!-- Zoom Buttons -->
             <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: center;">
-              <button type="button" id="dashZoom1x" style="background: #007bff; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">1x</button>
-              <button type="button" id="dashZoom2x" style="background: #17a2b8; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">2x Zoom</button>
+              <button type="button" id="dashZoom1x" style="background: #007bff; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; width: auto;">1x</button>
+              <button type="button" id="dashZoom2x" style="background: #17a2b8; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; width: auto;">2x Zoom</button>
             </div>
 
-            <button type="button" id="closeDashScanBtn" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; margin-top: 12px; border-radius: 6px; cursor: pointer;">
+            <button type="button" id="closeDashScanBtn" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; margin-top: 12px; border-radius: 6px; cursor: pointer; width: auto;">
               Close Camera
             </button>
           </div>
@@ -66,35 +84,35 @@
 
         <!-- Quick Actions & Search Bar Section -->
         <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 25px; flex-wrap: wrap;">
-            <button onclick="window.location.href='sales.html'">Sales History</button>
+            <button onclick="window.location.href='sales.html'" style="width: auto;">Sales History</button>
             
             <!-- Live Search Input -->
             <div style="position: relative; flex: 1; max-width: 400px;">
-                <input type="text" id="dashboardSearch" placeholder="🔍 Quick Search Medicine..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+                <input type="text" id="dashboardSearch" placeholder="🔍 Quick Search Medicine..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
                 <!-- Live Search Results Dropdown -->
                 <div id="searchResults" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 6px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: none;"></div>
             </div>
         </div>
 
-        <div class="cards">
-            <div class="card">
-                <h3>Total Medicines</h3>
-                <p id="totalMedicines">0</p>
+        <div class="cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div class="card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin-top: 0; color: #555;">Total Medicines</h3>
+                <p id="totalMedicines" style="font-size: 24px; font-weight: bold; margin-bottom: 0;">0</p>
             </div>
 
-            <div class="card">
-                <h3>Today's Sales</h3>
-                <p id="todaySales">₹0</p>
+            <div class="card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin-top: 0; color: #555;">Today's Sales</h3>
+                <p id="todaySales" style="font-size: 24px; font-weight: bold; margin-bottom: 0; color: #28a745;">₹0</p>
             </div>
 
-            <div class="card">
-                <h3>Customers</h3>
-                <p id="totalCustomers">0</p>
+            <div class="card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin-top: 0; color: #555;">Customers</h3>
+                <p id="totalCustomers" style="font-size: 24px; font-weight: bold; margin-bottom: 0;">0</p>
             </div>
 
-            <div class="card">
-                <h3>Low Stock Alerts</h3>
-                <p id="expiryAlerts">0</p>
+            <div class="card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin-top: 0; color: #555;">Low Stock Alerts</h3>
+                <p id="expiryAlerts" style="font-size: 24px; font-weight: bold; margin-bottom: 0; color: #dc3545;">0</p>
             </div>
         </div>
 
@@ -113,14 +131,14 @@
         <p><b>Expiry Date:</b> <span id="modalMedExp">N/A</span></p>
         <br>
         <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button id="closeModalBtn" style="background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Close</button>
-            <button id="sellMedBtn" style="background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">🛒 Sell / Go to Billing</button>
+            <button id="closeModalBtn" style="background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; width: auto;">Close</button>
+            <button id="sellMedBtn" style="background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; width: auto;">🛒 Sell / Go to Billing</button>
         </div>
     </div>
 </div>
 
-<!-- Script version updated to v=889 -->
-<script type="module" src="js/dashboard.js?v=889"></script>
+<!-- Script version updated to v=890 -->
+<script type="module" src="js/dashboard.js?v=890"></script>
 
 </body>
 </html>
