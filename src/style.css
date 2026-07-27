@@ -121,3 +121,57 @@ table tr:hover{
   display: inline-block !important;
   white-space: nowrap !important;
 }
+
+/* Uniform Sidebar Styling matching Billing Page (Image 5) */
+.sidebar {
+  width: 240px !important;
+  min-width: 240px !important;
+  background-color: #0d6efd !important; /* Exact MediTrack Blue */
+  min-height: 100vh !important;
+  padding: 20px 15px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.sidebar .logo h2 {
+  color: #ffffff !important;
+  font-size: 20px !important;
+  margin-bottom: 25px !important;
+  padding-left: 10px !important;
+}
+
+.sidebar ul.nav-links, .sidebar nav.nav-menu {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.sidebar ul.nav-links li, .sidebar nav a {
+  margin-bottom: 8px !important;
+}
+
+/* Remove big white box active background */
+.sidebar ul.nav-links li a, .sidebar nav a {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  text-decoration: none !important;
+  padding: 10px 14px !important;
+  border-radius: 6px !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  background: transparent !important; /* Removes white block background */
+  transition: background 0.2s ease, color 0.2s ease !important;
+}
+
+/* Hover & Active text glow matching Billing */
+.sidebar ul.nav-links li.active a, 
+.sidebar ul.nav-links li a:hover,
+.sidebar nav a.active,
+.sidebar nav a:hover {
+  background: rgba(255, 255, 255, 0.15) !important; /* Subtle translucent highlight */
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
