@@ -94,7 +94,8 @@ table tr:hover{
         flex-direction: column;
     }
     .sidebar {
-        width: 100%;
+        width: 100% !important;
+        min-width: 100% !important;
         position: relative;
     }
     .content {
@@ -106,4 +107,17 @@ table tr:hover{
         overflow-x: auto;
         white-space: nowrap;
     }
+}
+
+/* Fix Sidebar Width Mismatch for Reports Page */
+.sidebar {
+  width: 250px !important;
+  min-width: 250px !important;
+  flex-shrink: 0 !important;
+}
+
+.sidebar a span, .sidebar .nav-links span {
+  font-size: 15px !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
 }
