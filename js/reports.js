@@ -64,11 +64,11 @@ async function loadReportsData() {
 
 // Render Reports UI Table and Metrics
 function renderReportsUI() {
-  // Dynamic DOM selections to ensure elements exist
+  // Dynamic DOM selections to ensure elements exist with fallback support
   const totalBatchesEl = document.getElementById("totalBatches") || document.getElementById("totalMedicines");
   const expiredEl = document.getElementById("expiredCount");
-  const expiringEl = document.getElementById("expiringCount");
-  const expiryTableBody = document.getElementById("expiryTableBody") || document.getElementById("reportsTableBody") || document.querySelector("tbody");
+  const expiringEl = document.getElementById("expiringSoonCount") || document.getElementById("expiringCount");
+  const expiryTableBody = document.getElementById("expiryReportTable") || document.getElementById("expiryTableBody") || document.getElementById("reportsTableBody") || document.querySelector("tbody");
 
   if (totalBatchesEl) totalBatchesEl.innerText = medicinesList.length;
 
@@ -85,7 +85,7 @@ function renderReportsUI() {
 
   if (medicinesList.length === 0) {
     if (expiryTableBody) {
-      expiryTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No medicines found in records.</td></tr>`;
+      expiryTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;">No medicines found in records.</td></tr>`;
     }
     return;
   }
@@ -120,10 +120,10 @@ function renderReportsUI() {
     if (expiryTableBody) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><b>${med.name || 'N/A'}</b></td>
-        <td>${activeStock} pcs</td>
-        <td>${formatMonthYear(expVal)}</td>
-        <td><span style="${statusClass}">${status}</span></td>
+        <td style="padding: 12px;"><b>${med.name || 'N/A'}</b></td>
+        <td style="padding: 12px;">${activeStock} pcs</td>
+        <td style="padding: 12px;">${formatMonthYear(expVal)}</td>
+        <td style="padding: 12px;"><span style="${statusClass}">${status}</span></td>
       `;
       expiryTableBody.appendChild(tr);
     }
