@@ -30,14 +30,14 @@ function playBeepSound() {
     const gainNode = audioCtx.createGain();
 
     oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // High pitch scanner beep
+    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
     gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
 
     oscillator.connect(gainNode);
     gainNode.connect(audioCtx.destination);
 
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.12); // Short 120ms beep
+    oscillator.stop(audioCtx.currentTime + 0.12); 
   } catch (e) {
     console.warn("Audio play warning:", e);
   }
@@ -327,88 +327,98 @@ if (addBillBtn) {
   });
 }
 
-// Generate Bill & DEDUCT STOCK
+// Common Shared Function for Saving Bill & Deducting Stock
+async function processAndSaveBill() {
+  const custName = nameEl && nameEl.value.trim() !== "" ? nameEl.value.trim() : "Walk-in Customer";
+  const custPhone = phoneEl && phoneEl.value.trim() !== "" ? phoneEl.value.trim() : "N/A";
+
+  const dispName = document.getElementById("dispCustName");
+  const dispPhone = document.getElementById("dispCustPhone");
+  if (dispName) dispName.innerText = custName;
+  if (dispPhone) dispPhone.innerText = custPhone;
+
+  const newBill = {
+    invoiceNo: invoiceNo,
+    date: formattedDate,
+    time: formattedTime,
+    grandTotal: totalAmount,
+    medicines: billItems
+  };
+
+  // 1. DEDUCT STOCK IN FIRESTORE & LOCALSTORAGE
+  let localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
+
+  for (let item of billItems) {
+    let calculatedNewStock = 0;
+
+    const medIndex = localMeds.findIndex(m => m.name === item.name || m.id === item.id);
+    if (medIndex !== -1) {
+      const currentMedStock = localMeds[medIndex].stock !== undefined ? localMeds[medIndex].stock : (localMeds[medIndex].stockQty || 0);
+      calculatedNewStock = Math.max(0, currentMedStock - item.quantity);
+      localMeds[medIndex].stock = calculatedNewStock;
+      localMeds[medIndex].stockQty = calculatedNewStock;
+    }
+
+    if (item.id && !item.id.startsWith("LOCAL-")) {
+      try {
+        const medRef = doc(db, "medicines", item.id);
+        await updateDoc(medRef, { stock: calculatedNewStock, stockQty: calculatedNewStock });
+      } catch(e) {
+        console.warn("Firestore stock update failed for", item.name, e);
+      }
+    }
+  }
+
+  localStorage.setItem("medicines", JSON.stringify(localMeds));
+
+  // 2. SAVE CUSTOMER BILL HISTORY
+  let customers = JSON.parse(localStorage.getItem("customers")) || [];
+  const existingIndex = customers.findIndex(c => (custPhone !== "N/A" && c.mobile === custPhone) || (custPhone === "N/A" && c.name === custName));
+
+  if (existingIndex !== -1) {
+    customers[existingIndex].name = custName;
+    customers[existingIndex].totalBills = (customers[existingIndex].totalBills || 1) + 1;
+    customers[existingIndex].totalPurchase = (parseFloat(customers[existingIndex].totalPurchase) || 0) + totalAmount;
+    customers[existingIndex].lastPurchase = formattedDate;
+    if (!customers[existingIndex].bills) customers[existingIndex].bills = [];
+    customers[existingIndex].bills.push(newBill);
+  } else {
+    customers.push({
+      id: "CUST-" + Date.now(),
+      name: custName,
+      mobile: custPhone,
+      totalBills: 1,
+      totalPurchase: totalAmount,
+      lastPurchase: formattedDate,
+      bills: [newBill]
+    });
+  }
+
+  localStorage.setItem("customers", JSON.stringify(customers));
+
+  // 3. SAVE SALE RECORD IN FIRESTORE
+  await addDoc(collection(db, "sales"), {
+    invoiceNo: invoiceNo,
+    customerName: custName,
+    mobile: custPhone,
+    medicines: billItems,
+    grandTotal: totalAmount,
+    date: formattedDate,
+    time: formattedTime,
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Generate Bill Button Listener
 if (generateBillBtn) {
   generateBillBtn.addEventListener("click", async () => {
     if (billItems.length === 0) return alert("Please add medicines first!");
-
-    const custName = nameEl && nameEl.value.trim() !== "" ? nameEl.value.trim() : "Walk-in Customer";
-    const custPhone = phoneEl && phoneEl.value.trim() !== "" ? phoneEl.value.trim() : "N/A";
 
     try {
       generateBillBtn.disabled = true;
       generateBillBtn.innerText = "Saving Bill & Updating Stock...";
 
-      const newBill = {
-        invoiceNo: invoiceNo,
-        date: formattedDate,
-        time: formattedTime,
-        grandTotal: totalAmount,
-        medicines: billItems
-      };
-
-      // 1. DEDUCT STOCK IN FIRESTORE & LOCALSTORAGE
-      let localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
-
-      for (let item of billItems) {
-        let calculatedNewStock = 0;
-
-        const medIndex = localMeds.findIndex(m => m.name === item.name || m.id === item.id);
-        if (medIndex !== -1) {
-          const currentMedStock = localMeds[medIndex].stock !== undefined ? localMeds[medIndex].stock : (localMeds[medIndex].stockQty || 0);
-          calculatedNewStock = Math.max(0, currentMedStock - item.quantity);
-          localMeds[medIndex].stock = calculatedNewStock;
-          localMeds[medIndex].stockQty = calculatedNewStock;
-        }
-
-        if (item.id && !item.id.startsWith("LOCAL-")) {
-          try {
-            const medRef = doc(db, "medicines", item.id);
-            await updateDoc(medRef, { stock: calculatedNewStock, stockQty: calculatedNewStock });
-          } catch(e) {
-            console.warn("Firestore stock update failed for", item.name, e);
-          }
-        }
-      }
-
-      localStorage.setItem("medicines", JSON.stringify(localMeds));
-
-      // 2. SAVE CUSTOMER BILL HISTORY
-      let customers = JSON.parse(localStorage.getItem("customers")) || [];
-      const existingIndex = customers.findIndex(c => (custPhone !== "N/A" && c.mobile === custPhone) || (custPhone === "N/A" && c.name === custName));
-
-      if (existingIndex !== -1) {
-        customers[existingIndex].name = custName;
-        customers[existingIndex].totalBills = (customers[existingIndex].totalBills || 1) + 1;
-        customers[existingIndex].totalPurchase = (parseFloat(customers[existingIndex].totalPurchase) || 0) + totalAmount;
-        customers[existingIndex].lastPurchase = formattedDate;
-        if (!customers[existingIndex].bills) customers[existingIndex].bills = [];
-        customers[existingIndex].bills.push(newBill);
-      } else {
-        customers.push({
-          id: "CUST-" + Date.now(),
-          name: custName,
-          mobile: custPhone,
-          totalBills: 1,
-          totalPurchase: totalAmount,
-          lastPurchase: formattedDate,
-          bills: [newBill]
-        });
-      }
-
-      localStorage.setItem("customers", JSON.stringify(customers));
-
-      // 3. SAVE SALE RECORD
-      await addDoc(collection(db, "sales"), {
-        invoiceNo: invoiceNo,
-        customerName: custName,
-        mobile: custPhone,
-        medicines: billItems,
-        grandTotal: totalAmount,
-        date: formattedDate,
-        time: formattedTime,
-        timestamp: new Date().toISOString()
-      });
+      await processAndSaveBill();
 
       alert("Bill Generated & Stock Updated Successfully! 🎉");
       window.location.href = "customers.html";
@@ -421,4 +431,27 @@ if (generateBillBtn) {
   });
 }
 
-if (printBtn) printBtn.addEventListener("click", () => window.print());
+// Print Bill Button Listener (Auto-generates bill in background and triggers print)
+if (printBtn) {
+  printBtn.addEventListener("click", async () => {
+    if (billItems.length === 0) return alert("Please add medicines first before printing!");
+
+    try {
+      printBtn.disabled = true;
+      printBtn.innerText = "Processing...";
+
+      await processAndSaveBill();
+
+      printBtn.innerText = "Print Bill";
+      printBtn.disabled = false;
+
+      // Trigger clean invoice print preview
+      window.print();
+
+    } catch (err) {
+      alert("Error processing bill: " + err.message);
+      printBtn.disabled = false;
+      printBtn.innerText = "Print Bill";
+    }
+  });
+}

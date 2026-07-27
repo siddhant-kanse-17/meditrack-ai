@@ -34,6 +34,29 @@
       color: #333;
       font-size: 24px;
     }
+
+    /* Print Specific Styling: Sirf invoice area clean print hoga */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #invoiceArea, #invoiceArea * {
+        visibility: visible;
+      }
+      #invoiceArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+      /* Delete action column button print mein hide rahega */
+      #invoiceArea button {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body>
