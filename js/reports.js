@@ -2,12 +2,6 @@ import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// DOM Elements
-const totalBatchesEl = document.getElementById("totalBatches") || document.getElementById("totalMedicines");
-const expiredEl = document.getElementById("expiredCount");
-const expiringEl = document.getElementById("expiringCount");
-const expiryTableBody = document.getElementById("expiryTableBody") || document.getElementById("reportsTableBody");
-
 let medicinesList = [];
 
 // Instant Auth Guard
@@ -70,6 +64,12 @@ async function loadReportsData() {
 
 // Render Reports UI Table and Metrics
 function renderReportsUI() {
+  // Dynamic DOM selections to ensure elements exist
+  const totalBatchesEl = document.getElementById("totalBatches") || document.getElementById("totalMedicines");
+  const expiredEl = document.getElementById("expiredCount");
+  const expiringEl = document.getElementById("expiringCount");
+  const expiryTableBody = document.getElementById("expiryTableBody") || document.getElementById("reportsTableBody") || document.querySelector("tbody");
+
   if (totalBatchesEl) totalBatchesEl.innerText = medicinesList.length;
 
   let expiredCount = 0;
@@ -79,10 +79,19 @@ function renderReportsUI() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1; // 1-12
 
-  if (expiryTableBody) expiryTableBody.innerHTML = "";
+  if (expiryTableBody) {
+    expiryTableBody.innerHTML = ""; // Remove "Loading reports..."
+  }
+
+  if (medicinesList.length === 0) {
+    if (expiryTableBody) {
+      expiryTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No medicines found in records.</td></tr>`;
+    }
+    return;
+  }
 
   medicinesList.forEach((med) => {
-    // Correct stock calculation priority (stock > stockQty)
+    // Correct stock calculation priority
     const activeStock = med.stock !== undefined ? med.stock : (med.stockQty !== undefined ? med.stockQty : 0);
 
     let status = "Safe";
