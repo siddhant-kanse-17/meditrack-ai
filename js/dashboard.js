@@ -22,6 +22,27 @@ const searchResultsDropdown = document.getElementById("searchResults");
 let medicinesList = [];
 let dashQrCode = null;
 
+// 🔊 Scanner Beep Sound Function (Web Audio API)
+function playBeepSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // 800Hz scanner beep
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.12); // 120ms sound
+  } catch (e) {
+    console.warn("Audio play warning:", e);
+  }
+}
+
 // Instant Auth Guard & Initial Loader
 onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -166,6 +187,7 @@ function setupDashboardScanner() {
                 { facingMode: "environment" },
                 config,
                 (decodedText) => {
+                    playBeepSound(); // 🔊 Play Beep Sound immediately on scan success
                     stopDashScanner();
                     showMedicinePopup(decodedText);
                 },

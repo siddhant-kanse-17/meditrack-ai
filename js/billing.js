@@ -140,6 +140,7 @@ function checkAndAutoSelectMedicine() {
   }
 
   if (matchedIndex !== -1) {
+    playBeepSound(); // 🔊 Play Beep Sound on auto-selection!
     medicineSelect.selectedIndex = matchedIndex;
     const qtyInput = document.getElementById("qty");
     if (qtyInput) qtyInput.value = 1;
@@ -251,7 +252,7 @@ function handleScannedBarcode(scannedText) {
   }
 
   if (foundIndex !== -1) {
-    playBeepSound(); // 🔊 Play scanner beep on match
+    playBeepSound(); // 🔊 Play scanner beep on barcode match
     medicineSelect.selectedIndex = foundIndex;
     const qtyInput = document.getElementById("qty");
     if (qtyInput) qtyInput.value = 1;
