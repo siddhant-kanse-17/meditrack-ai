@@ -138,45 +138,52 @@ window.loadDailySalesHistory = async function() {
   modalBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 15px;">Loading sales history...</td></tr>`;
 
   try {
-    let billsList = [];
+    let salesList = [];
 
-    // 1. Try fetching bills from Firestore
-    try {
-      const querySnapshot = await getDocs(collection(db, "bills"));
-      querySnapshot.forEach((docSnap) => {
-        billsList.push(docSnap.data());
-      });
-    } catch (e) {
-      console.warn("Firestore bills fetch error, reading Local Storage backup:", e);
+    // 1. Try fetching from Firestore collection 'sales' (Corrected collection name)
+    const collectionsToTry = ["sales", "bills", "invoices"];
+    for (const colName of collectionsToTry) {
+      try {
+        const querySnapshot = await getDocs(collection(db, colName));
+        querySnapshot.forEach((docSnap) => {
+          salesList.push(docSnap.data());
+        });
+      } catch (e) {
+        console.warn(`Firestore collection '${colName}' fetch error:`, e);
+      }
     }
 
-    // 2. Fallback or merge with LocalStorage bills
-    const localBills = JSON.parse(localStorage.getItem("bills")) || [];
-    if (billsList.length === 0) {
-      billsList = localBills;
-    }
+    // 2. Fallback or merge with LocalStorage backups
+    const storageKeys = ["sales", "bills", "invoices", "salesHistory"];
+    storageKeys.forEach((key) => {
+      const data = JSON.parse(localStorage.getItem(key));
+      if (Array.isArray(data) && data.length > 0) {
+        salesList = salesList.concat(data);
+      }
+    });
 
-    if (billsList.length === 0) {
+    if (salesList.length === 0) {
       modalBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 15px; color: #666;">No sales records found.</td></tr>`;
       return;
     }
 
-    // 3. Group bills by Date
+    // 3. Group sales by Date
     const salesByDate = {};
-    billsList.forEach((bill) => {
-      const dateKey = bill.date || bill.billDate || "Unknown Date";
-      const totalAmount = parseFloat(bill.grandTotal || bill.total || 0);
+    salesList.forEach((record) => {
+      const dateKey = record.date || record.billDate || record.createdAt || record.timestamp || "Unknown Date";
+      const formattedDate = typeof dateKey === 'string' ? dateKey.split('T')[0] : dateKey;
+      const totalAmount = parseFloat(record.grandTotal || record.total || record.amount || 0);
 
-      if (!salesByDate[dateKey]) {
-        salesByDate[dateKey] = { count: 0, total: 0 };
+      if (!salesByDate[formattedDate]) {
+        salesByDate[formattedDate] = { count: 0, total: 0 };
       }
-      salesByDate[dateKey].count += 1;
-      salesByDate[dateKey].total += totalAmount;
+      salesByDate[formattedDate].count += 1;
+      salesByDate[formattedDate].total += totalAmount;
     });
 
-    // 4. Render into Modal Table
+    // 4. Render into Modal Table (Latest dates first)
     modalBody.innerHTML = "";
-    const sortedDates = Object.keys(salesByDate).reverse(); // Latest dates first
+    const sortedDates = Object.keys(salesByDate).sort().reverse();
 
     sortedDates.forEach((dateStr) => {
       const data = salesByDate[dateStr];
