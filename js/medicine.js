@@ -36,22 +36,44 @@ function formatMonthYear(val) {
     return val;
 }
 
-// Load Medicines from Firestore
+// Load Medicines from Firestore & Sync Local Storage Backup
 async function loadMedicines() {
     try {
-        const querySnapshot = await getDocs(collection(db, "medicines"));
         allMedicines = [];
-        medTableBody.innerHTML = "";
+        if (medTableBody) medTableBody.innerHTML = "";
 
-        if (querySnapshot.empty) {
-            medTableBody.innerHTML = `<tr><td colspan="7">No medicines added yet.</td></tr>`;
-            return;
+        // 1. Try fetching from Firestore
+        try {
+            const querySnapshot = await getDocs(collection(db, "medicines"));
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                allMedicines.push({ id: docSnap.id, ...data });
+            });
+        } catch(e) {
+            console.warn("Firestore fetch error, reading local backup:", e);
         }
 
-        querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            allMedicines.push({ id: docSnap.id, ...data });
-        });
+        // 2. Local Cache Sync Fallback
+        const localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
+        
+        if (allMedicines.length === 0) {
+            allMedicines = localMeds;
+        } else {
+            // Sync local storage stock with loaded medicines
+            allMedicines = allMedicines.map(med => {
+                const localMatch = localMeds.find(l => l.id === med.id || l.name === med.name);
+                if (localMatch) {
+                    const latestStock = localMatch.stock !== undefined ? localMatch.stock : (localMatch.stockQty !== undefined ? localMatch.stockQty : med.stock);
+                    return { ...med, stock: latestStock, stockQty: latestStock };
+                }
+                return med;
+            });
+        }
+
+        if (allMedicines.length === 0) {
+            if (medTableBody) medTableBody.innerHTML = `<tr><td colspan="7">No medicines added yet.</td></tr>`;
+            return;
+        }
 
         renderTable(allMedicines);
 
@@ -60,18 +82,25 @@ async function loadMedicines() {
     }
 }
 
-// Render Table Data
+// Render Table Data with Correct Stock Calculation
 function renderTable(medicinesList) {
+    if (!medTableBody) return;
     medTableBody.innerHTML = "";
     
     medicinesList.forEach((med) => {
         const tr = document.createElement("tr");
 
+        // Dynamic check for stock property
+        const currentStock = med.stock !== undefined ? med.stock : (med.stockQty !== undefined ? med.stockQty : 0);
+        
+        // Stock Low styling warning indicator
+        const stockBadgeStyle = currentStock <= 5 ? "color: #dc3545; font-weight: bold;" : "";
+
         tr.innerHTML = `
             <td><code>${med.barcode || 'N/A'}</code></td>
             <td><b>${med.name}</b></td>
             <td>₹${med.price}</td>
-            <td>${med.stock}</td>
+            <td style="${stockBadgeStyle}">${currentStock}</td>
             <td>${formatMonthYear(med.mfgDate)}</td>
             <td>${formatMonthYear(med.expiryDate)}</td>
             <td style="display: flex; gap: 5px;">
@@ -83,7 +112,7 @@ function renderTable(medicinesList) {
         medTableBody.appendChild(tr);
     });
 
-    // Edit Button Handlers (Autofills Form)
+    // Edit Button Handlers
     document.querySelectorAll(".edit-btn").forEach((btn) => {
         btn.addEventListener("click", (e) => {
             const medId = e.target.getAttribute("data-id");
@@ -91,13 +120,14 @@ function renderTable(medicinesList) {
 
             if (!medToEdit) return;
 
-            // Fill input fields with existing values
+            const stockVal = medToEdit.stock !== undefined ? medToEdit.stock : (medToEdit.stockQty !== undefined ? medToEdit.stockQty : "");
+
             if (medBarcodeInput) medBarcodeInput.value = medToEdit.barcode || "";
-            medNameInput.value = medToEdit.name || "";
-            medPriceInput.value = medToEdit.price || "";
-            medStockInput.value = medToEdit.stock || "";
-            medMfgInput.value = medToEdit.mfgDate || "";
-            medExpInput.value = medToEdit.expiryDate || "";
+            if (medNameInput) medNameInput.value = medToEdit.name || "";
+            if (medPriceInput) medPriceInput.value = medToEdit.price || "";
+            if (medStockInput) medStockInput.value = stockVal;
+            if (medMfgInput) medMfgInput.value = medToEdit.mfgDate || "";
+            if (medExpInput) medExpInput.value = medToEdit.expiryDate || "";
 
             editingMedId = medId;
             if (addMedBtn) {
@@ -105,7 +135,6 @@ function renderTable(medicinesList) {
                 addMedBtn.style.background = "#28a745";
             }
 
-            // Scroll smoothly to top form
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
@@ -115,7 +144,17 @@ function renderTable(medicinesList) {
         btn.addEventListener("click", async (e) => {
             const medId = e.target.getAttribute("data-id");
             if (confirm("Are you sure you want to delete this medicine?")) {
-                await deleteDoc(doc(db, "medicines", medId));
+                try {
+                    await deleteDoc(doc(db, "medicines", medId));
+                } catch(err) {
+                    console.warn("Firestore delete fallback:", err);
+                }
+
+                // Delete from LocalStorage backup
+                let localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
+                localMeds = localMeds.filter(m => m.id !== medId);
+                localStorage.setItem("medicines", JSON.stringify(localMeds));
+
                 loadMedicines();
             }
         });
@@ -123,43 +162,60 @@ function renderTable(medicinesList) {
 }
 
 // Add or Update Medicine Handler
-medForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
+if (medForm) {
+    medForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-    const medData = {
-        barcode: medBarcodeInput ? medBarcodeInput.value.trim() : "",
-        name: medNameInput.value.trim(),
-        price: Number(medPriceInput.value),
-        stock: Number(medStockInput.value),
-        mfgDate: medMfgInput.value || "",
-        expiryDate: medExpInput.value || "",
-        updatedAt: new Date().toISOString()
-    };
+        const stockNum = Number(medStockInput ? medStockInput.value : 0);
 
-    try {
-        if (editingMedId) {
-            // Update existing record
-            await updateDoc(doc(db, "medicines", editingMedId), medData);
-            editingMedId = null;
-            if (addMedBtn) {
-                addMedBtn.innerText = "Add Medicine";
-                addMedBtn.style.background = "#007bff";
+        const medData = {
+            barcode: medBarcodeInput ? medBarcodeInput.value.trim() : "",
+            name: medNameInput.value.trim(),
+            price: Number(medPriceInput.value),
+            stock: stockNum,
+            stockQty: stockNum,
+            mfgDate: medMfgInput ? medMfgInput.value || "" : "",
+            expiryDate: medExpInput ? medExpInput.value || "" : "",
+            updatedAt: new Date().toISOString()
+        };
+
+        try {
+            if (editingMedId) {
+                await updateDoc(doc(db, "medicines", editingMedId), medData);
+                
+                // Sync Local Storage
+                let localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
+                const idx = localMeds.findIndex(m => m.id === editingMedId);
+                if (idx !== -1) {
+                    localMeds[idx] = { ...localMeds[idx], ...medData };
+                    localStorage.setItem("medicines", JSON.stringify(localMeds));
+                }
+
+                editingMedId = null;
+                if (addMedBtn) {
+                    addMedBtn.innerText = "Add Medicine";
+                    addMedBtn.style.background = "#007bff";
+                }
+            } else {
+                medData.createdAt = new Date().toISOString();
+                const docRef = await addDoc(collection(db, "medicines"), medData);
+                
+                // Add to Local Storage
+                let localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
+                localMeds.push({ id: docRef.id, ...medData });
+                localStorage.setItem("medicines", JSON.stringify(localMeds));
             }
-        } else {
-            // Add new record
-            medData.createdAt = new Date().toISOString();
-            await addDoc(collection(db, "medicines"), medData);
+
+            medForm.reset();
+            loadMedicines();
+
+        } catch (err) {
+            alert("Operation failed: " + err.message);
         }
+    });
+}
 
-        medForm.reset();
-        loadMedicines();
-
-    } catch (err) {
-        alert("Operation failed: " + err.message);
-    }
-});
-
-// Search Filter Handler (Supports Name & Barcode Search)
+// Search Filter Handler
 if (searchInput) {
     searchInput.addEventListener("input", (e) => {
         const term = e.target.value.toLowerCase();
@@ -189,18 +245,15 @@ async function autoFetchPharmaDetails(barcode) {
     if (data.status === 1 && data.product) {
       const p = data.product;
 
-      // 1. Auto-fill Medicine Name
       const fetchedName = p.product_name || p.product_name_en || p.generic_name || "";
       if (fetchedName && medNameInput) {
         medNameInput.value = fetchedName;
       }
 
-      // 2. Auto-fill MRP/Price (agar public record me present ho)
       if (p.price && medPriceInput) {
         medPriceInput.value = p.price;
       }
     } else {
-      console.log("Barcode record not found in online DB, enter details manually.");
       if (medNameInput) medNameInput.focus();
     }
   } catch (error) {
@@ -209,7 +262,7 @@ async function autoFetchPharmaDetails(barcode) {
   }
 }
 
-// 📷 Camera Trigger Event Listener
+// Camera Trigger Event Listener
 if (scanBtn) {
   scanBtn.addEventListener('click', function () {
     if (modal) modal.style.display = 'flex';
@@ -221,12 +274,10 @@ if (scanBtn) {
       { facingMode: "environment" },
       config,
       async (decodedText) => {
-        // 1. Scanned Barcode ID field me auto-paste
         if (medBarcodeInput) {
           medBarcodeInput.value = decodedText;
         }
 
-        // 2. Camera off
         try {
           await medScanner.stop();
         } catch (e) {
@@ -234,7 +285,6 @@ if (scanBtn) {
         }
         if (modal) modal.style.display = 'none';
 
-        // 3. Auto Fetch Medicine Info
         await autoFetchPharmaDetails(decodedText);
       }
     ).catch(err => {
