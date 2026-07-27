@@ -35,7 +35,7 @@
       font-size: 24px;
     }
 
-    /* Print Specific Styling: Sirf invoice area clean print hoga */
+    /* Print Specific Styling: Single Page Clean Print */
     @media print {
       body * {
         visibility: hidden;
@@ -48,11 +48,15 @@
         left: 0;
         top: 0;
         width: 100%;
+        max-height: 100vh;
         box-shadow: none !important;
         border: none !important;
-        padding: 0 !important;
+        padding: 5px !important;
+        margin: 0 !important;
       }
-      /* Delete action column button print mein hide rahega */
+      /* Hide Action header (6th column) and delete buttons during print */
+      #invoiceArea th:nth-child(6), 
+      #invoiceArea td:nth-child(6), 
       #invoiceArea button {
         display: none !important;
       }
@@ -121,6 +125,7 @@
           <thead>
             <tr style="background: #007bff; color: white; text-align: left;">
               <th style="padding: 10px 12px;">Medicine</th>
+              <th style="padding: 10px 12px;">Expiry</th>
               <th style="padding: 10px 12px;">Price</th>
               <th style="padding: 10px 12px;">Qty</th>
               <th style="padding: 10px 12px;">Total</th>

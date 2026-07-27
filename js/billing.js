@@ -63,6 +63,16 @@ const formattedTime = now.toLocaleTimeString("en-IN", { hour: '2-digit', minute:
 if (document.getElementById("billDate")) document.getElementById("billDate").innerText = formattedDate;
 if (document.getElementById("billTime")) document.getElementById("billTime").innerText = formattedTime;
 
+// Helper Function: Format Month/Year display for Expiry Date
+function formatMonthYear(val) {
+  if (!val) return 'N/A';
+  const parts = val.split("-");
+  if (parts.length === 2) {
+    return `${parts[1]}/${parts[0]}`;
+  }
+  return val;
+}
+
 // Load Medicines & Auto-select scanned/passed item
 async function loadMedicines() {
   if (!medicineSelect) return;
@@ -86,8 +96,9 @@ async function loadMedicines() {
 
     medicinesList.forEach((medicine) => {
       const availableStock = medicine.stock !== undefined ? medicine.stock : (medicine.stockQty || 0);
+      const expiry = medicine.expiryDate || medicine.expDate || "";
       medicineSelect.innerHTML += `
-        <option value="${medicine.price}" data-barcode="${medicine.barcode || ''}" data-stock="${availableStock}" data-id="${medicine.id || ''}" data-name="${medicine.name}">
+        <option value="${medicine.price}" data-barcode="${medicine.barcode || ''}" data-stock="${availableStock}" data-expiry="${expiry}" data-id="${medicine.id || ''}" data-name="${medicine.name}">
           ${medicine.name} - ₹${medicine.price} (Stock: ${availableStock})
         </option>`;
     });
@@ -257,14 +268,14 @@ function handleScannedBarcode(scannedText) {
   }
 }
 
-// Render Bill Table Function (Includes Delete Button Column)
+// Render Bill Table Function (Includes Expiry Date Column)
 function renderBillTable() {
   if (!billTable) return;
   billTable.innerHTML = "";
   totalAmount = 0;
 
   if (billItems.length === 0) {
-    billTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888; padding: 15px;">No items added to bill yet.</td></tr>`;
+    billTable.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888; padding: 15px;">No items added to bill yet.</td></tr>`;
     if (grandTotal) grandTotal.innerText = `Grand Total: ₹0.00`;
     return;
   }
@@ -274,6 +285,7 @@ function renderBillTable() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td style="padding: 10px;">${item.name}</td>
+      <td style="padding: 10px;">${formatMonthYear(item.expiryDate)}</td>
       <td style="padding: 10px;">₹${item.price}</td>
       <td style="padding: 10px;">${item.quantity}</td>
       <td style="padding: 10px;">₹${item.total.toFixed(2)}</td>
@@ -301,6 +313,7 @@ if (addBillBtn) {
 
     const medicineName = selectedOption.getAttribute("data-name");
     const medId = selectedOption.getAttribute("data-id");
+    const expiryDate = selectedOption.getAttribute("data-expiry");
     const currentStock = Number(selectedOption.getAttribute("data-stock") || 0);
     const price = Number(selectedOption.value);
     const qtyInput = document.getElementById("qty");
@@ -315,6 +328,7 @@ if (addBillBtn) {
       id: medId, 
       medicine: medicineName, 
       name: medicineName, 
+      expiryDate: expiryDate,
       price: price, 
       quantity: qty, 
       total: total 
