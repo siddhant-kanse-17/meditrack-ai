@@ -1,91 +1,132 @@
-body{
-    margin:0;
-    font-family:Arial, sans-serif;
-    background:#f4f7fc;
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f7fc;
 }
 
-.dashboard{
-    display:flex;
+.dashboard {
+    display: flex;
+    min-height: 100vh;
 }
 
-.sidebar{
-    width:250px;
-    min-height:100vh;
-    background:#1565c0;
-    color:white;
-    padding:20px;
-    box-sizing:border-box;
+/* Unified Professional Sidebar Styling */
+.sidebar {
+    width: 240px !important;
+    min-width: 240px !important;
+    background-color: #0d6efd !important;
+    min-height: 100vh !important;
+    padding: 20px 15px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-shrink: 0 !important;
+    color: white !important;
 }
 
-.sidebar h2{
-    margin-bottom:40px;
+.sidebar .logo h2 {
+    color: #ffffff !important;
+    font-size: 20px !important;
+    margin-bottom: 25px !important;
+    padding-left: 10px !important;
+    margin-top: 5px;
 }
 
-.sidebar a{
-    display:block;
-    color:white;
-    text-decoration:none;
-    padding:12px;
-    margin:8px 0;
-    border-radius:8px;
+.sidebar ul.nav-links, 
+.sidebar nav.nav-menu {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
-.sidebar a:hover,
-.sidebar .active{
-    background:white;
-    color:#1565c0;
+.sidebar ul.nav-links li, 
+.sidebar nav a {
+    margin-bottom: 8px !important;
 }
 
-.content{
-    flex:1;
-    padding:35px;
+/* Clean Links & Removed White Box Active Background */
+.sidebar ul.nav-links li a, 
+.sidebar nav a {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    text-decoration: none !important;
+    padding: 10px 14px !important;
+    border-radius: 6px !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    background: transparent !important;
+    transition: background 0.2s ease, color 0.2s ease !important;
+}
+
+.sidebar a span, 
+.sidebar .nav-links span {
+    font-size: 15px !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+}
+
+/* Translucent Smooth Active & Hover Highlight */
+.sidebar ul.nav-links li.active a, 
+.sidebar ul.nav-links li a:hover,
+.sidebar nav a.active,
+.sidebar nav a:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.content {
+    flex: 1;
+    padding: 35px;
+    overflow-y: auto;
 }
 
 form input,
-#search{
-    width:100%;
-    padding:12px;
-    margin:10px 0;
-    border:1px solid #ccc;
-    border-radius:8px;
-    box-sizing:border-box;
+#search {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
 }
 
-button{
-    width:100%;
-    padding:12px;
-    background:#1565c0;
-    color:white;
-    border:none;
-    border-radius:8px;
-    cursor:pointer;
-    font-size:16px;
+button {
+    width: 100%;
+    padding: 12px;
+    background: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
 }
 
-button:hover{
-    background:#0d47a1;
+button:hover {
+    background: #0b5ed7;
 }
 
-table{
-    width:100%;
-    border-collapse:collapse;
-    margin-top:20px;
-    background:white;
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: white;
 }
 
-table th{
-    background:#1565c0;
-    color:white;
-    padding:12px;
+table th {
+    background: #0d6efd;
+    color: white;
+    padding: 12px;
 }
 
-table td{
-    padding:12px;
-    border-bottom:1px solid #ddd;
+table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
 }
 
-table tr:hover{
-    background:#f5f5f5;
+table tr:hover {
+    background: #f5f5f5;
 }
 
 /* Mobile Responsive Adjustments */
@@ -96,6 +137,7 @@ table tr:hover{
     .sidebar {
         width: 100% !important;
         min-width: 100% !important;
+        min-height: auto !important;
         position: relative;
     }
     .content {
@@ -107,71 +149,4 @@ table tr:hover{
         overflow-x: auto;
         white-space: nowrap;
     }
-}
-
-/* Fix Sidebar Width Mismatch for Reports Page */
-.sidebar {
-  width: 250px !important;
-  min-width: 250px !important;
-  flex-shrink: 0 !important;
-}
-
-.sidebar a span, .sidebar .nav-links span {
-  font-size: 15px !important;
-  display: inline-block !important;
-  white-space: nowrap !important;
-}
-
-/* Uniform Sidebar Styling matching Billing Page (Image 5) */
-.sidebar {
-  width: 240px !important;
-  min-width: 240px !important;
-  background-color: #0d6efd !important; /* Exact MediTrack Blue */
-  min-height: 100vh !important;
-  padding: 20px 15px !important;
-  box-sizing: border-box !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-.sidebar .logo h2 {
-  color: #ffffff !important;
-  font-size: 20px !important;
-  margin-bottom: 25px !important;
-  padding-left: 10px !important;
-}
-
-.sidebar ul.nav-links, .sidebar nav.nav-menu {
-  list-style: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-.sidebar ul.nav-links li, .sidebar nav a {
-  margin-bottom: 8px !important;
-}
-
-/* Remove big white box active background */
-.sidebar ul.nav-links li a, .sidebar nav a {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  color: rgba(255, 255, 255, 0.85) !important;
-  text-decoration: none !important;
-  padding: 10px 14px !important;
-  border-radius: 6px !important;
-  font-size: 15px !important;
-  font-weight: 500 !important;
-  background: transparent !important; /* Removes white block background */
-  transition: background 0.2s ease, color 0.2s ease !important;
-}
-
-/* Hover & Active text glow matching Billing */
-.sidebar ul.nav-links li.active a, 
-.sidebar ul.nav-links li a:hover,
-.sidebar nav a.active,
-.sidebar nav a:hover {
-  background: rgba(255, 255, 255, 0.15) !important; /* Subtle translucent highlight */
-  color: #ffffff !important;
-  font-weight: 600 !important;
 }
