@@ -341,7 +341,7 @@ if (addBillBtn) {
   });
 }
 
-// Common Shared Function for Saving Bill & Accurate Stock Deduction
+// Common Shared Function for Saving Bill & Bulletproof Stock Deduction
 async function processAndSaveBill() {
   const custName = nameEl && nameEl.value.trim() !== "" ? nameEl.value.trim() : "Walk-in Customer";
   const custPhone = phoneEl && phoneEl.value.trim() !== "" ? phoneEl.value.trim() : "N/A";
@@ -359,20 +359,28 @@ async function processAndSaveBill() {
     medicines: billItems
   };
 
-  // 1. ACCURATELY DEDUCT STOCK IN LOCALSTORAGE & FIRESTORE
+  // 1. BULLETPROOF STOCK DEDUCTION IN LOCALSTORAGE & FIRESTORE
   let localMeds = JSON.parse(localStorage.getItem("medicines")) || [];
 
   for (let item of billItems) {
     const billedQty = Number(item.quantity || 1);
 
-    const medIndex = localMeds.findIndex(m => String(m.id) === String(item.id) || String(m.name).trim().toLowerCase() === String(item.name).trim().toLowerCase());
-    
+    // Find medicine index robustly by matching ID or exact Name
+    const medIndex = localMeds.findIndex(m => {
+      if (item.id && m.id && String(m.id) === String(item.id)) return true;
+      if (m.name && item.name && String(m.name).trim().toLowerCase() === String(item.name).trim().toLowerCase()) return true;
+      return false;
+    });
+
     let calculatedNewStock = 0;
     if (medIndex !== -1) {
       const currentMedStock = Number(localMeds[medIndex].stock !== undefined ? localMeds[medIndex].stock : (localMeds[medIndex].stockQty || 0));
       calculatedNewStock = Math.max(0, currentMedStock - billedQty);
       localMeds[medIndex].stock = calculatedNewStock;
       localMeds[medIndex].stockQty = calculatedNewStock;
+    } else {
+      // Fallback if not found in local array directly
+      calculatedNewStock = 0;
     }
 
     if (item.id && !item.id.startsWith("LOCAL-")) {
