@@ -28,8 +28,8 @@ onAuthStateChanged(auth, (user) => {
   } else {
     document.documentElement.style.display = 'block';
     
-    // Load Admin Name from localStorage or Firebase displayName
-    const currentAdminName = localStorage.getItem("adminName") || user.displayName || "";
+    // Load Admin Name: Pehle Firebase displayName, fir localStorage, fir blank
+const currentAdminName = user.displayName || localStorage.getItem("adminName") || "";
     if (adminNameInput) adminNameInput.value = currentAdminName;
     if (newEmailInput) newEmailInput.value = user.email || "";
   }
