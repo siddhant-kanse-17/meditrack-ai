@@ -96,7 +96,7 @@ function renderSalesTable(salesData) {
           <td>${formattedDate}</td>
           <td>
             <button class="view-btn" data-id="${sale.id || invId}" 
-                    style="background-color: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                    style="background-color: #0d6efd; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
               View Details
             </button>
           </td>
@@ -151,7 +151,7 @@ function openModal(saleId) {
 
   modalContent.innerHTML = `
     <div id="printableArea">
-      <h3 style="margin-top:0; border-bottom: 2px solid #007bff; padding-bottom: 8px; color: #007bff;">💊 MediTrack AI - Invoice</h3>
+      <h3 style="margin-top:0; border-bottom: 2px solid #0d6efd; padding-bottom: 8px; color: #0d6efd;">💊 MediTrack AI - Invoice</h3>
       <p style="margin: 4px 0;"><strong>Invoice No:</strong> ${sale.invoiceNo || sale.id}</p>
       <p style="margin: 4px 0;"><strong>Customer:</strong> ${sale.customerName || sale.customer || "Walk-in Customer"}</p>
       <p style="margin: 4px 0;"><strong>Mobile:</strong> ${sale.mobile || sale.phone || "N/A"}</p>
@@ -174,20 +174,19 @@ function openModal(saleId) {
         </tbody>
       </table>
       
-      <h3 style="text-align: right; margin-top: 15px; color: #28a745;">
+      <h3 style="text-align: right; margin-top: 15px; color: #198754;">
         Total Amount: ₹${Number(sale.grandTotal || sale.total || 0).toFixed(2)}
       </h3>
     </div>
 
     <div class="no-print" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
-      <button id="printInvoiceBtn" style="background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Print Invoice</button>
+      <button id="printInvoiceBtn" style="background: #198754; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Print Invoice</button>
       <button id="closeModalBtn" style="background: #dc3545; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Close</button>
     </div>
   `;
 
   invoiceModal.style.display = "flex";
 
-  // Bind click handlers dynamically to modal controls
   document.getElementById("closeModalBtn")?.addEventListener("click", closeModal);
   document.getElementById("printInvoiceBtn")?.addEventListener("click", () => window.print());
 }
@@ -201,7 +200,6 @@ function closeModal() {
   }
 }
 
-// Global exposure for inline HTML fallbacks
 window.openModal = openModal;
 window.closeModal = closeModal;
 
