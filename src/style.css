@@ -151,3 +151,20 @@ table tr:hover {
         white-space: nowrap;
     }
 }
+
+/* 🛠️ Complete Sidebar & Dashboard Border Reset */
+.dashboard, .app-container {
+    background-color: #0d6efd !important;
+    border: none !important;
+}
+
+.sidebar {
+    border-right: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.content, .main-content {
+    background-color: #f4f7fc !important;
+    border-left: none !important;
+}
