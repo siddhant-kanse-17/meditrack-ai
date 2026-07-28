@@ -137,12 +137,20 @@ function openModal(saleId) {
         const total = Number(item.total || price * qty);
 
         return `
-          <tr>
-            <td style="padding: 6px; text-align: left;">${name}</td>
-            <td style="padding: 6px; text-align: center;">${qty}</td>
-            <td style="padding: 6px; text-align: right;">₹${price.toFixed(2)}</td>
-            <td style="padding: 6px; text-align: right;">₹${total.toFixed(2)}</td>
-          </tr>`;
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 10px;"><strong>${invId}</strong></td>
+          <td>${custName}</td>
+          <td>${mobile}</td>
+          <td><strong>₹${grandTotal.toFixed(2)}</strong></td>
+          <td>${formattedDate}</td>
+          <td>
+            <button class="view-btn" data-id="${sale.id || invId}" 
+                    style="background-color: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+              View Details
+            </button>
+          </td>
+        </tr>
+      `;
       })
       .join("");
   } else {
